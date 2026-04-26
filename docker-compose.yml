@@ -1,0 +1,98 @@
+# NewsWeave - Podman or Docker Compose
+# Build (works even if `compose up` fails):  podman build -f Dockerfile -t newsweave-api:latest .
+# Run stack:  podman compose -f docker-compose.yml up --build
+#   or:  docker compose -f docker-compose.yml up --build
+# If you see "docker-credential-desktop" errors, remove or fix the credsStore line in
+# ~/.docker/config.json, or set:  export BUILDAH_FORMAT=docker
+#
+# Local (no container):  OLLAMA_HOST=http://127.0.0.1:11434  uvicorn api:app --host 0.0.0.0 --port 8000
+# Optional .env: NEWSAPI_KEY=...  (RSS feeds work with no key.)
+name: newsweave
+
+services:
+  ollama:
+    image: docker.io/ollama/ollama:latest
+    container_name: newsweave_ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "sh", "-c", "ollama list >/dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 6
+      start_period: 40s
+
+  model_puller:
+    image: docker.io/ollama/ollama:latest
+    container_name: newsweave_model_puller
+    environment:
+      OLLAMA_HOST: http://ollama:11434
+      PULL_MODEL: ${OLLAMA_MODEL:-qwen2.5:0.5b}
+    depends_on:
+      ollama:
+        condition: service_healthy
+    entrypoint: ["/bin/sh", "-c", "set -e; ollama pull \"$$PULL_MODEL\" && echo 'Model ready'"]
+    restart: "no"
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: newsweave-api:latest
+    container_name: newsweave_api
+    ports:
+      - "8000:8000"
+    environment:
+      OLLAMA_HOST: http://ollama:11434
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen2.5:0.5b}
+      MAX_ARTICLES: ${MAX_ARTICLES:-20}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}
+      NEWSAPI_KEY: ${NEWSAPI_KEY:-}
+    volumes:
+      - ./data:/app/data
+    depends_on:
+      ollama:
+        condition: service_healthy
+      model_puller:
+        condition: service_completed_successfully
+    restart: unless-stopped
+    command:
+      - uvicorn
+      - api:app
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8000"
+      - --workers
+      - "1"
+
+  scheduler:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: newsweave-api:latest
+    container_name: newsweave_scheduler
+    environment:
+      OLLAMA_HOST: http://ollama:11434
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen2.5:0.5b}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}
+      SCHEDULER_MODE: "true"
+      MAX_ARTICLES: ${MAX_ARTICLES:-20}
+      RUN_INTERVAL_MINUTES: "30"
+    volumes:
+      - ./data:/app/data
+    depends_on:
+      ollama:
+        condition: service_healthy
+      model_puller:
+        condition: service_completed_successfully
+    restart: unless-stopped
+    command: [python, "-u", "orchestrator.py"]
+
+volumes:
+  ollama_data:

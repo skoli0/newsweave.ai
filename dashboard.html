@@ -1,0 +1,4226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NewsWeave - Personal News Intelligence Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/topojson-client@3/dist/topojson-client.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,600;1,9..144,300&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --ink: #0e0f0c;
+  --ink-2: #3d3e38;
+  --ink-3: #7a7b74;
+  --ink-4: #b8b9b1;
+  --paper: #f5f3ee;
+  --paper-2: #ede9e0;
+  --paper-3: #e4e0d5;
+  --accent: #c8622a;
+  --accent-soft: #f0dace;
+  --pos: #2d6a4f;
+  --pos-soft: #d8f3dc;
+  --neg: #9b2335;
+  --neg-soft: #fde8ec;
+  --neu: #4a5568;
+  --neu-soft: #edf2f7;
+  --finance: #1a5276;
+  --tech: #6c3483;
+  --biz: #1e8449;
+  --pol: #784212;
+  --geo: #154360;
+  --sci: #0e6251;
+  --border: rgba(14,15,12,0.1);
+  --r: 8px;
+  --sidebar: 220px;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html, body {
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+}
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: var(--paper);
+  color: var(--ink);
+  display: flex;
+  min-width: 0;
+}
+
+/* ── Sidebar ── */
+#sidebar {
+  width: var(--sidebar);
+  min-height: 100vh;
+  background: var(--ink);
+  color: var(--paper);
+  display: flex;
+  flex-direction: column;
+  position: fixed;
+  top: 0; left: 0;
+  z-index: 100;
+  padding: 0 0 2rem;
+}
+
+.logo {
+  padding: 1.5rem 1.25rem 1rem;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+.logo-mark {
+  font-family: 'Fraunces', serif;
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.5px;
+  color: #fff;
+  line-height: 1;
+}
+.logo-sub {
+  font-size: 10px;
+  font-weight: 300;
+  color: rgba(255,255,255,0.4);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  margin-top: 3px;
+}
+
+.nav-section {
+  padding: 1.25rem 0;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+.nav-label {
+  font-size: 9px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.3);
+  padding: 0 1.25rem;
+  margin-bottom: 6px;
+}
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 1.25rem;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 400;
+  color: rgba(255,255,255,0.6);
+  transition: all 0.15s;
+  border-left: 2px solid transparent;
+}
+.nav-item:hover { color: #fff; background: rgba(255,255,255,0.05); }
+.nav-item.active {
+  color: #fff;
+  border-left-color: var(--accent);
+  background: rgba(200,98,42,0.15);
+}
+.nav-icon { width: 14px; text-align: center; font-size: 14px; }
+
+.cat-dot {
+  width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+}
+
+/* Pipeline status */
+.pipeline-status {
+  margin-top: auto;
+  padding: 1rem 1.25rem;
+}
+.status-card {
+  background: rgba(255,255,255,0.06);
+  border-radius: var(--r);
+  padding: 10px 12px;
+  font-size: 11px;
+}
+.status-label { color: rgba(255,255,255,0.4); margin-bottom: 4px; }
+.status-val { color: #fff; font-weight: 500; font-family: 'DM Mono', monospace; }
+.status-dot {
+  display: inline-block; width: 7px; height: 7px;
+  border-radius: 50%; background: #4caf50;
+  margin-right: 5px;
+  animation: pulse 2s ease-in-out infinite;
+}
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+/* ── Main layout ── */
+#main {
+  margin-left: var(--sidebar);
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  max-height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* ── Topbar ── */
+#topbar {
+  height: 56px;
+  background: var(--paper);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 1.5rem;
+  position: sticky;
+  top: 0;
+  z-index: 50;
+}
+
+.page-title {
+  font-family: 'Fraunces', serif;
+  font-size: 16px;
+  font-weight: 300;
+  color: var(--ink);
+}
+.topbar-sep { color: var(--ink-4); margin: 0 2px; }
+
+.search-wrap {
+  flex: 1;
+  max-width: 380px;
+  margin-left: auto;
+  position: relative;
+}
+.search-wrap input {
+  width: 100%;
+  background: var(--paper-2);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 6px 14px 6px 34px;
+  font-size: 13px;
+  font-family: 'DM Sans', sans-serif;
+  color: var(--ink);
+  outline: none;
+  transition: border 0.15s;
+}
+.search-wrap input:focus { border-color: var(--accent); }
+.search-icon {
+  position: absolute; left: 11px; top: 50%; transform: translateY(-50%);
+  color: var(--ink-3); font-size: 13px;
+}
+
+.run-btn {
+  display: flex; align-items: center; gap: 6px;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 6px 14px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: 'DM Sans', sans-serif;
+  transition: opacity 0.15s;
+}
+.run-btn:hover { opacity: 0.88; }
+.run-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.time-chip {
+  font-size: 11px;
+  color: var(--ink-3);
+  font-family: 'DM Mono', monospace;
+  white-space: nowrap;
+}
+
+/* ── View panels ── */
+.view {
+  display: none;
+  flex: 1;
+  min-height: 0;
+  flex-direction: column;
+  overflow: hidden;
+}
+.view.active { display: flex; }
+
+/* ── Stats row ── */
+.stats-row {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 1px;
+  flex-shrink: 0;
+  background: var(--border);
+  border-bottom: 1px solid var(--border);
+}
+.stat-cell {
+  background: var(--paper);
+  padding: 16px 20px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.stat-cell:hover { background: var(--paper-2); }
+.stat-num {
+  font-family: 'Fraunces', serif;
+  font-size: 28px;
+  font-weight: 600;
+  line-height: 1;
+  color: var(--ink);
+}
+.stat-lbl {
+  font-size: 11px;
+  color: var(--ink-3);
+  margin-top: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.stat-delta {
+  font-size: 10px;
+  font-family: 'DM Mono', monospace;
+  margin-top: 2px;
+}
+.delta-pos { color: var(--pos); }
+.delta-neg { color: var(--neg); }
+
+/* ── Dashboard grid ── */
+.dash-grid {
+  display: grid;
+  grid-template-columns: 1fr 340px;
+  grid-template-rows: minmax(0, 1fr);
+  gap: 0;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* World map panel (dashboard) */
+#world-map-panel {
+  /* relative so absolute map tooltip positions correctly */
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
+  min-width: 0;
+  background: var(--paper-2);
+  border-right: 1px solid var(--border);
+}
+.world-map-header {
+  flex: 0 0 auto;
+  padding: 10px 14px 6px 14px;
+  border-bottom: 1px solid var(--border);
+  background: var(--paper);
+}
+.world-map-title {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink);
+  letter-spacing: 0.02em;
+}
+.world-map-hint {
+  display: block;
+  font-size: 10px;
+  color: var(--ink-3);
+  margin-top: 3px;
+  line-height: 1.35;
+}
+.world-map-toggle {
+  margin-top: 8px;
+  font-size: 10px;
+  border: 1px solid var(--border);
+  background: var(--paper);
+  color: var(--ink-2);
+  border-radius: 999px;
+  padding: 5px 10px;
+  cursor: pointer;
+}
+.world-map-toggle:hover { border-color: var(--accent); color: var(--accent); }
+.world-map-wrap {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+}
+#world-map-svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+  cursor: grab;
+}
+#world-map-svg:active { cursor: grabbing; }
+.map-tooltip {
+  position: absolute;
+  display: none;
+  pointer-events: none;
+  z-index: 20;
+  max-width: 280px;
+  padding: 10px 12px;
+  background: var(--ink);
+  color: var(--paper);
+  border-radius: 8px;
+  font-size: 11px;
+  line-height: 1.45;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+}
+.map-tooltip .mt-title { font-weight: 600; margin-bottom: 4px; }
+.map-tooltip .mt-meta { opacity: 0.75; font-size: 10px; margin-bottom: 6px; }
+.map-tooltip .mt-line { font-size: 10px; opacity: 0.9; border-top: 1px solid rgba(255,255,255,0.12); margin-top: 6px; padding-top: 4px; }
+.map-legend {
+  position: absolute;
+  bottom: 12px;
+  left: 12px;
+  font-size: 10px;
+  color: var(--ink-3);
+  background: rgba(245,243,238,0.9);
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  pointer-events: none;
+}
+.legend-bar {
+  margin-top: 5px;
+  width: 130px;
+  height: 6px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, #1e8f5e 0%, #2a6fa8 55%, #c0392b 100%);
+}
+
+.graph-legend {
+  position: absolute;
+  bottom: 16px;
+  right: 16px;
+  background: rgba(245,243,238,0.92);
+  backdrop-filter: blur(6px);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  padding: 10px 14px;
+  font-size: 11px;
+}
+.legend-row {
+  display: flex; align-items: center; gap: 7px;
+  margin-bottom: 4px; color: var(--ink-2);
+}
+.legend-row:last-child { margin-bottom: 0; }
+
+.graph-controls {
+  position: absolute;
+  top: 12px; right: 12px;
+  display: flex; flex-direction: column; gap: 6px;
+}
+.graph-btn {
+  width: 30px; height: 30px;
+  background: var(--paper);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; font-size: 14px;
+  transition: background 0.15s;
+}
+.graph-btn:hover { background: var(--paper-3); }
+
+/* Article feed */
+#feed-panel {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.feed-header {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ink-2);
+  flex-shrink: 0;
+}
+.feed-filter-row {
+  display: flex; gap: 4px; flex-wrap: wrap;
+}
+.smart-brief {
+  margin: 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  background: var(--paper);
+  padding: 12px;
+  overflow: hidden;
+  transform: translateY(-4px);
+  opacity: 0;
+  max-height: 0;
+  transition: max-height 220ms ease, opacity 180ms ease, transform 220ms ease;
+}
+.smart-brief.hidden { display: none; }
+.smart-brief.open {
+  transform: translateY(0);
+  opacity: 1;
+  max-height: 520px;
+}
+.smart-brief.inline {
+  margin: 4px 0 10px 0;
+}
+.brief-head {
+  display: none;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.brief-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+}
+.brief-close {
+  border: 1px solid var(--border);
+  background: var(--paper-2);
+  color: var(--ink-2);
+  border-radius: 8px;
+  font-size: 11px;
+  padding: 4px 8px;
+  cursor: pointer;
+}
+.brief-close:hover { border-color: var(--accent); color: var(--accent); }
+.brief-line {
+  font-size: 11px;
+  color: var(--ink-2);
+  line-height: 1.5;
+  margin-bottom: 6px;
+}
+.brief-meta {
+  display: flex;
+  gap: 6px;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+  -webkit-overflow-scrolling: touch;
+  margin-bottom: 8px;
+}
+.brief-chip {
+  font-size: 10px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--paper-2);
+  color: var(--ink-2);
+  white-space: nowrap;
+  flex: 0 0 auto;
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.brief-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.brief-btn {
+  font-size: 10px;
+  border: 1px solid var(--border);
+  background: var(--paper-2);
+  color: var(--ink-2);
+  border-radius: 999px;
+  padding: 4px 10px;
+  cursor: pointer;
+}
+.brief-btn:hover { border-color: var(--accent); color: var(--accent); }
+.filter-chip {
+  padding: 3px 9px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--paper);
+  font-size: 10px;
+  cursor: pointer;
+  transition: all 0.15s;
+  color: var(--ink-3);
+  text-transform: capitalize;
+}
+.filter-chip.f-all { border-color: rgba(14,15,12,0.35); color: var(--ink-2); }
+.filter-chip.f-positive { border-color: rgba(45,106,79,0.45); color: var(--pos); background: rgba(216,243,220,0.25); }
+.filter-chip.f-negative { border-color: rgba(155,35,53,0.45); color: var(--neg); background: rgba(253,232,236,0.3); }
+.filter-chip.f-high { border-color: rgba(200,98,42,0.45); color: var(--accent); background: rgba(240,218,206,0.35); }
+.filter-chip:hover { border-color: var(--ink-3); color: var(--ink); }
+.filter-chip.active {
+  background: var(--ink);
+  color: var(--paper);
+  border-color: var(--ink);
+}
+.filter-chip.active.f-all {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--paper);
+}
+.filter-chip.active.f-positive {
+  background: var(--pos-soft);
+  border-color: var(--pos);
+  color: var(--pos);
+}
+.filter-chip.active.f-negative {
+  background: var(--neg-soft);
+  border-color: var(--neg);
+  color: var(--neg);
+}
+.filter-chip.active.f-high {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.article-list {
+  flex: 1 1 0;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  padding: 8px;
+  overscroll-behavior: contain;
+}
+
+.article-card {
+  background: var(--paper);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  padding: 12px;
+  margin-bottom: 6px;
+  cursor: pointer;
+  transition: all 0.15s;
+  position: relative;
+}
+.article-card:hover {
+  border-color: var(--accent);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(200,98,42,0.1);
+}
+.article-card.selected {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.art-top {
+  display: flex; align-items: center; gap: 6px; margin-bottom: 6px;
+}
+.art-cat {
+  font-size: 9px; text-transform: uppercase; letter-spacing: 1px;
+  padding: 2px 7px; border-radius: 10px; font-weight: 500;
+}
+.art-source {
+  font-size: 10px; color: var(--ink-3); font-family: 'DM Mono', monospace;
+}
+.art-impact {
+  margin-left: auto;
+  width: 28px; height: 4px; border-radius: 2px; background: var(--paper-3);
+}
+.art-impact-fill { height: 100%; border-radius: 2px; }
+.art-title {
+  font-size: 13px; font-weight: 500; line-height: 1.35;
+  color: var(--ink); margin-bottom: 5px;
+}
+.art-summary {
+  font-size: 11px; color: var(--ink-3); line-height: 1.5;
+  display: -webkit-box; -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical; overflow: hidden;
+}
+.art-footer {
+  display: flex; align-items: center; gap: 8px; margin-top: 8px;
+}
+.sentiment-badge {
+  font-size: 9px; font-weight: 500; letter-spacing: 0.5px;
+  text-transform: uppercase; padding: 2px 8px; border-radius: 10px;
+}
+.art-time {
+  font-size: 10px; color: var(--ink-4); font-family: 'DM Mono', monospace;
+  margin-left: auto;
+}
+a.art-link {
+  font-size: 10px; font-weight: 500; color: var(--accent);
+  text-decoration: none;
+  margin-right: 8px;
+}
+a.art-link:hover { text-decoration: underline; }
+
+/* Topic chips in article */
+.art-entities {
+  display: flex; flex-wrap: wrap; gap: 3px; margin-top: 6px;
+}
+.ent-chip {
+  font-size: 10px; padding: 2px 7px; border-radius: 10px;
+  border: 1px solid var(--border); color: var(--ink-2);
+  background: var(--paper-2);
+}
+
+/* ── Graph view ── */
+#graph-view .stats-row { display: none; }
+
+/* ── Ask AI panel ── */
+.ask-panel {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  padding: 2rem;
+  max-width: 900px;
+  margin: 0 auto;
+  width: 100%;
+  min-height: 0;
+}
+.ask-header {
+  font-family: 'Fraunces', serif;
+  font-size: 32px;
+  font-weight: 300;
+  margin-bottom: 6px;
+}
+.ask-sub { font-size: 14px; color: var(--ink-3); margin-bottom: 8px; }
+
+.suggested-qs {
+  display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px;
+}
+.sug-q {
+  padding: 7px 14px; border: 1px solid var(--border);
+  border-radius: 20px; font-size: 12px;
+  cursor: pointer; color: var(--ink-2);
+  background: var(--paper);
+  transition: all 0.15s;
+}
+.sug-q:hover { border-color: var(--accent); color: var(--accent); }
+
+.ask-chat {
+  flex: 1;
+  min-height: 380px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  background: var(--paper);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.ask-thread {
+  flex: 1;
+  overflow-y: auto;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.ask-empty {
+  margin: auto 0;
+  text-align: center;
+  color: var(--ink-4);
+  font-size: 13px;
+}
+.ask-msg {
+  max-width: min(78ch, 78%);
+  border-radius: 14px;
+  padding: 10px 12px;
+  font-size: 14px;
+  line-height: 1.6;
+  border: 1px solid transparent;
+  word-break: break-word;
+}
+.ask-msg-user {
+  align-self: flex-end;
+  background: #f2e6de;
+  border-color: #ead6c8;
+  color: #2f2420;
+}
+.ask-msg-ai {
+  align-self: flex-start;
+  background: var(--paper-2);
+  border-color: var(--border);
+  color: var(--ink-2);
+}
+.ask-msg-role {
+  display: block;
+  font-family: 'DM Mono', monospace;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.45px;
+  margin-bottom: 6px;
+  opacity: 0.72;
+}
+.ask-composer {
+  border-top: 1px solid var(--border);
+  background: var(--paper);
+  padding: 10px;
+  display: flex;
+  gap: 8px;
+}
+.ask-input {
+  flex: 1;
+  min-height: 44px;
+  max-height: 130px;
+  resize: vertical;
+  background: var(--paper-2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 10px 12px;
+  font-size: 14px;
+  font-family: 'DM Sans', sans-serif;
+  color: var(--ink);
+  outline: none;
+  transition: border 0.15s;
+}
+.ask-input:focus { border-color: var(--accent); }
+.ask-btn {
+  align-self: flex-end;
+  background: var(--accent); color: #fff; border: none;
+  border-radius: 10px; padding: 10px 16px;
+  font-size: 13px; font-weight: 600;
+  cursor: pointer; font-family: 'DM Sans', sans-serif;
+  transition: opacity 0.15s;
+}
+.ask-btn:hover { opacity: 0.88; }
+.ask-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+.ask-msg.loading {
+  color: var(--ink-4);
+  font-style: italic;
+}
+.ask-msg.ask-prose { white-space: normal; }
+.ask-msg.ask-prose p { margin: 0 0 0.85em; }
+.ask-msg.ask-prose p:last-child { margin-bottom: 0; }
+.ask-msg.ask-prose strong { color: var(--ink); font-weight: 600; }
+.ask-msg.ask-prose ol, .ask-msg.ask-prose ul {
+  margin: 0.4em 0 0.85em 1.25em;
+  padding: 0;
+}
+.ask-msg.ask-prose li { margin: 0.35em 0; }
+.ask-evidence {
+  margin-top: 10px;
+  border-top: 1px dashed var(--border);
+  padding-top: 8px;
+}
+.ask-confidence {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 10px;
+  border: 1px solid var(--border);
+  color: var(--ink-3);
+  margin-bottom: 8px;
+}
+.ask-citations {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.ask-cite {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--paper);
+  padding: 7px 8px;
+  font-size: 12px;
+  line-height: 1.45;
+}
+.ask-cite a {
+  color: var(--ink);
+  text-decoration: none;
+}
+.ask-cite a:hover { text-decoration: underline; }
+.ask-cite-meta {
+  margin-top: 4px;
+  color: var(--ink-4);
+  font-size: 10px;
+}
+
+/* ── Topics view ── */
+#entities-view { min-height: 0; }
+.entities-shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1;
+}
+.entities-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border);
+  background: var(--paper);
+}
+.entities-meta {
+  font-size: 11px;
+  color: var(--ink-3);
+}
+.entities-meta-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.entities-focus-pill {
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--paper-3);
+  color: var(--ink-2);
+  font-size: 10px;
+}
+.hidden-inline { display: none; }
+.entities-clear-btn {
+  font-size: 10px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--paper);
+  color: var(--ink-2);
+  padding: 4px 10px;
+  cursor: pointer;
+}
+.entities-clear-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.entity-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  grid-auto-rows: min-content;
+  gap: 12px;
+  padding: 1.5rem;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  align-content: start;
+  align-items: stretch;
+}
+.entity-card {
+  background: var(--paper);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  padding: 14px;
+  cursor: pointer;
+  transition: all 0.15s;
+  display: flex;
+  flex-direction: column;
+  min-height: 132px;
+}
+.entity-card:hover {
+  border-color: var(--ink-3);
+  transform: translateY(-2px);
+}
+.ent-name {
+  font-size: 15px; font-weight: 500;
+  color: var(--ink); margin-bottom: 4px;
+}
+.ent-type-badge {
+  font-size: 9px; text-transform: uppercase; letter-spacing: 1px;
+  padding: 2px 7px; border-radius: 10px;
+  background: var(--paper-3); color: var(--ink-3); display: inline-block;
+  margin-bottom: 10px;
+}
+.ent-bar-bg {
+  height: 4px; background: var(--paper-3); border-radius: 2px; margin-top: 8px;
+}
+.ent-bar-fill {
+  height: 100%; border-radius: 2px; background: var(--accent);
+  transition: width 0.6s ease;
+}
+.ent-degree {
+  font-size: 10px; color: var(--ink-3); margin-top: 4px;
+  font-family: 'DM Mono', monospace;
+}
+.ent-actions {
+  margin-top: auto;
+  padding-top: 10px;
+  display: flex;
+  gap: 6px;
+}
+.ent-action {
+  font-size: 10px;
+  padding: 4px 7px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  color: var(--ink-2);
+  background: var(--paper-2);
+}
+.entity-card.active {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px rgba(200,98,42,0.2) inset;
+}
+
+.pipeline-steps-head {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: rgba(255,255,255,0.45);
+  margin: 8px 0 6px;
+}
+.pipeline-steps-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 100px;
+  overflow: auto;
+}
+.pipeline-step {
+  font-size: 10px;
+  line-height: 1.35;
+  color: rgba(255,255,255,0.78);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+}
+.pipeline-step.current { color: #9fd4ff; font-weight: 500; }
+
+/* ── Notification toast ── */
+.toast {
+  position: fixed; bottom: 24px; right: 24px;
+  background: var(--ink); color: var(--paper);
+  padding: 10px 16px; border-radius: var(--r);
+  font-size: 13px; z-index: 999;
+  transform: translateY(80px); opacity: 0;
+  transition: all 0.3s ease;
+}
+.toast.show { transform: translateY(0); opacity: 1; }
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+/* Loading skeleton */
+.skeleton {
+  background: linear-gradient(90deg, var(--paper-2) 25%, var(--paper-3) 50%, var(--paper-2) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 4px;
+}
+@keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+/* Category colours */
+.cat-finance   { background: #dce8f5; color: var(--finance); }
+.cat-technology{ background: #ede0f7; color: var(--tech); }
+.cat-business  { background: #d9f0e3; color: var(--biz); }
+.cat-politics  { background: #faebd5; color: var(--pol); }
+.cat-geopolitics{ background: #d5e9f5; color: var(--geo); }
+.cat-science   { background: #d5efea; color: var(--sci); }
+
+.sent-positive { background: var(--pos-soft); color: var(--pos); }
+.sent-negative { background: var(--neg-soft); color: var(--neg); }
+.sent-neutral  { background: var(--neu-soft); color: var(--neu); }
+
+/* Sentiment bars (stats) */
+.sent-bar-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; font-size: 11px; }
+.sent-bar-bg { flex: 1; height: 6px; background: var(--paper-3); border-radius: 3px; }
+.sent-bar-fill { height: 100%; border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<!-- ── Sidebar ──────────────────────────────────────────── -->
+<aside id="sidebar">
+  <div class="logo">
+    <div class="logo-mark">NewsWeave</div>
+    <div class="logo-sub">News Intelligence</div>
+  </div>
+
+  <div class="nav-section">
+    <div class="nav-label">Views</div>
+    <div class="nav-item active" onclick="switchView('dashboard')">
+      <span class="nav-icon" aria-hidden="true">
+        <svg viewBox="0 0 16 16" width="14" height="14" style="display:block">
+          <circle cx="8" cy="8" r="6.1" fill="none" stroke="currentColor" stroke-width="1.4"></circle>
+          <ellipse cx="8" cy="8" rx="2.6" ry="6.1" fill="none" stroke="currentColor" stroke-width="1.2"></ellipse>
+          <path d="M1.9 8h12.2M3.1 5.1h9.8M3.1 10.9h9.8" fill="none" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"></path>
+        </svg>
+      </span> World View
+    </div>
+    <div class="nav-item" onclick="switchView('graph')">
+      <span class="nav-icon" aria-hidden="true">
+        <svg viewBox="0 0 16 16" width="14" height="14" style="display:block">
+          <line x1="3" y1="3.5" x2="12.5" y2="5.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"></line>
+          <line x1="3.5" y1="4" x2="7.6" y2="12" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"></line>
+          <line x1="12.2" y1="6" x2="8.1" y2="12.1" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"></line>
+          <circle cx="3" cy="3.5" r="2.1" fill="currentColor"></circle>
+          <circle cx="12.7" cy="5.6" r="2.2" fill="currentColor"></circle>
+          <circle cx="7.8" cy="12.4" r="2.3" fill="currentColor"></circle>
+        </svg>
+      </span> World Graph
+    </div>
+    <div class="nav-item" onclick="switchView('entities')">
+      <span class="nav-icon">◉</span> Topics
+    </div>
+  </div>
+
+  <div class="nav-section">
+    <div class="nav-label">Categories</div>
+    <div class="nav-item" onclick="filterByCategory('all')">
+      <span class="cat-dot" style="background:linear-gradient(135deg,#666,#999)"></span> All news
+    </div>
+    <div class="nav-item" onclick="filterByCategory('finance')">
+      <span class="cat-dot" style="background:#1a5276"></span> Finance
+    </div>
+    <div class="nav-item" onclick="filterByCategory('technology')">
+      <span class="cat-dot" style="background:#6c3483"></span> Technology
+    </div>
+    <div class="nav-item" onclick="filterByCategory('business')">
+      <span class="cat-dot" style="background:#1e8449"></span> Business
+    </div>
+    <div class="nav-item" onclick="filterByCategory('politics')">
+      <span class="cat-dot" style="background:#784212"></span> Politics
+    </div>
+    <div class="nav-item" onclick="filterByCategory('geopolitics')">
+      <span class="cat-dot" style="background:#154360"></span> Geopolitics
+    </div>
+    <div class="nav-item" onclick="filterByCategory('science')">
+      <span class="cat-dot" style="background:#0e6251"></span> Science
+    </div>
+  </div>
+
+  <div class="nav-section">
+    <div class="nav-label">CHAT</div>
+    <div class="nav-item" onclick="switchView('ask')">
+      <span class="nav-icon">◎</span> Ask AI
+    </div>
+  </div>
+
+  <div class="pipeline-status">
+    <div class="status-card">
+      <div class="status-label">Pipeline</div>
+      <div class="status-val" id="pipeline-status">
+        <span class="status-dot"></span>demo mode
+      </div>
+      <div style="margin-top:8px;font-size:10px;color:rgba(255,255,255,0.3)" id="last-run-time">
+        Using sample data
+      </div>
+      <!-- <div class="pipeline-steps-head hidden" id="pipeline-steps-head">Live steps</div> -->
+      <div id="pipeline-steps-list" class="pipeline-steps-list"></div>
+    </div>
+  </div>
+</aside>
+
+<!-- ── Main ─────────────────────────────────────────────── -->
+<div id="main">
+  <div id="topbar">
+    <span class="page-title" id="page-title">World View</span>
+    <span class="topbar-sep">·</span>
+    <span class="time-chip" id="topbar-time">Loading…</span>
+    <div class="search-wrap">
+      <span class="search-icon">⌕</span>
+      <input type="text" id="search-input" placeholder="Search articles, topics…" oninput="onSearch(this.value)">
+    </div>
+    <button class="run-btn" onclick="triggerRun()" id="run-btn">
+      ▶ Run Pipeline
+    </button>
+  </div>
+
+  <!-- ── Dashboard View ── -->
+  <div class="view active" id="dashboard-view">
+    <div class="stats-row" id="stats-row">
+      <div class="stat-cell" onclick="goToFeedFilter('all')">
+        <div class="stat-num" id="s-articles">-</div>
+        <div class="stat-lbl">Articles</div>
+        <div class="stat-delta delta-pos" id="s-articles-d"></div>
+      </div>
+      <div class="stat-cell" onclick="switchView('dashboard')">
+        <div class="stat-num" id="s-nodes">-</div>
+        <div class="stat-lbl">Active regions</div>
+      </div>
+      <div class="stat-cell" onclick="switchView('graph')">
+        <div class="stat-num" id="s-edges">-</div>
+        <div class="stat-lbl">Relations</div>
+      </div>
+      <div class="stat-cell" onclick="goToFeedFilter('positive')">
+        <div class="stat-num" style="color:var(--pos)" id="s-pos">-</div>
+        <div class="stat-lbl">Positive Signal</div>
+      </div>
+      <div class="stat-cell" onclick="goToFeedFilter('negative')">
+        <div class="stat-num" style="color:var(--neg)" id="s-neg">-</div>
+        <div class="stat-lbl">Negative Signal</div>
+      </div>
+    </div>
+
+    <div class="dash-grid">
+      <div id="world-map-panel">
+        <div class="world-map-header">
+          <span class="world-map-title">Global news impact</span>
+          <span class="world-map-hint" id="world-map-sub">Circle size = cumulative impact on that region. Hover for headlines & sentiment.</span>
+          <button class="world-map-toggle" id="world-map-toggle" onclick="toggleWorldProjection()">Switch to Globe (3D-like)</button>
+        </div>
+        <div class="world-map-wrap">
+          <svg id="world-map-svg" aria-label="World impact map"></svg>
+        </div>
+        <div id="world-map-tooltip" class="map-tooltip"></div>
+        <div class="map-legend" id="map-legend">Impact intensity: low → medium → high<div class="legend-bar"></div></div>
+        <div class="graph-controls" style="top:40px">
+          <div class="graph-btn" title="Zoom in" onclick="worldMapZoom(1.3)">+</div>
+          <div class="graph-btn" title="Zoom out" onclick="worldMapZoom(0.75)">−</div>
+          <div class="graph-btn" title="Reset" onclick="worldMapZoomReset()">⟳</div>
+        </div>
+      </div>
+
+      <div id="feed-panel">
+        <div class="feed-header">
+          <span>Live Feed</span>
+          <div class="feed-filter-row" id="filter-chips">
+            <span class="filter-chip active f-all" onclick="setFeedFilter('all', this)">All</span>
+            <span class="filter-chip f-positive" onclick="setFeedFilter('positive', this)">↑ Pos</span>
+            <span class="filter-chip f-negative" onclick="setFeedFilter('negative', this)">↓ Neg</span>
+            <span class="filter-chip f-high" onclick="setFeedFilter('high', this)">★ High Impact</span>
+          </div>
+        </div>
+        <div class="smart-brief hidden" id="smart-brief">
+          <div class="brief-head">
+            <span class="brief-title" id="brief-title">Smart Brief</span>
+          </div>
+          <div class="brief-line" id="brief-summary"></div>
+          <div class="brief-line" id="brief-why"></div>
+          <div class="brief-meta" id="brief-meta"></div>
+          <div class="brief-actions" id="brief-actions"></div>
+        </div>
+        <div class="article-list" id="article-list">
+          <!-- Skeleton -->
+          <div style="padding:8px">
+            <div class="skeleton" style="height:100px;border-radius:8px;margin-bottom:6px"></div>
+            <div class="skeleton" style="height:100px;border-radius:8px;margin-bottom:6px"></div>
+            <div class="skeleton" style="height:100px;border-radius:8px"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Full Graph View ── -->
+  <div class="view" id="graph-view" style="overflow:hidden">
+    <div style="position:relative;flex:1;background:var(--paper-2)">
+      <svg id="graph-canvas-full" style="width:100%;height:100%"></svg>
+      <div class="graph-legend" style="bottom:24px;right:24px">
+        <div style="font-size:12px;font-weight:500;margin-bottom:8px;color:var(--ink)">World Graph</div>
+        <div class="legend-row"><span class="cat-dot" style="background:#2a85c4"></span>Article: finance (default)</div>
+        <div class="legend-row"><span class="cat-dot" style="background:#8e44ad"></span>Article: technology</div>
+        <div class="legend-row"><span class="cat-dot" style="background:#27ae60"></span>Article: business</div>
+        <div class="legend-row"><span class="cat-dot" style="background:#d68910"></span>Article: politics</div>
+        <div class="legend-row"><span class="cat-dot" style="background:#2471a3"></span>Article: geopolitics</div>
+        <div class="legend-row"><span class="cat-dot" style="background:#1abc9c"></span>Article: science</div>
+        <div class="legend-row"><span class="cat-dot" style="background:#c8622a"></span>Topic / person / org</div>
+        <div class="legend-row"><span class="cat-dot" style="background:#4a9060"></span>Theme / topic</div>
+        <div class="legend-row" style="margin-top:8px;color:var(--ink-3)">
+          Drag nodes · Scroll to zoom
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Topics View ── -->
+  <div class="view" id="entities-view">
+    <div class="entities-shell">
+      <div class="entities-toolbar">
+        <div class="entities-meta entities-meta-row">
+          <span>Topic intelligence</span>
+          <span class="entities-focus-pill hidden-inline" id="entities-focus-pill"></span>
+          <button class="entities-clear-btn" onclick="clearEntityFocus(true)">All topics</button>
+        </div>
+        <div class="feed-filter-row" id="entities-filter-chips">
+          <span class="filter-chip f-all active" onclick="setEntitiesStoryFilter('all', this)">All</span>
+          <span class="filter-chip f-positive" onclick="setEntitiesStoryFilter('positive', this)">↑ Pos</span>
+          <span class="filter-chip f-negative" onclick="setEntitiesStoryFilter('negative', this)">↓ Neg</span>
+          <span class="filter-chip f-high" onclick="setEntitiesStoryFilter('high', this)">★ High Impact</span>
+        </div>
+      </div>
+      <div class="entity-grid" id="entity-grid">
+        <!-- filled by JS -->
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Ask AI View ── -->
+  <div class="view" id="ask-view">
+    <div class="ask-panel">
+      <div class="ask-header">Ask your news</div>
+      <div class="ask-sub">Powered by a local Ollama model - your data never leaves your machine.</div>
+      <div class="ask-sub" id="ask-scope-hint">Context: all recent articles.</div>
+      <div class="suggested-qs" id="ask-suggestions"></div>
+      <div class="ask-chat">
+        <div class="ask-thread" id="ask-thread">
+          <div class="ask-empty" id="ask-empty">Start a conversation about the latest signals, topics, or categories.</div>
+        </div>
+        <div class="ask-composer">
+          <textarea class="ask-input" id="ask-input" rows="2"
+            placeholder="Message Ask AI..."
+            onkeydown="handleAskInputKeydown(event)"></textarea>
+          <button class="ask-btn" id="ask-send-btn" onclick="sendQuestion()">Send ↗</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ────────────────────────────────────────────────────────────────────────────
+// State
+// ────────────────────────────────────────────────────────────────────────────
+const API = `${window.location.origin}/api`;
+let allArticles = [];
+let graphData   = { nodes: [], links: [] };
+let currentFilter = 'all';
+let currentSearchQuery = '';
+let currentBriefArticleId = null;
+let currentView = 'dashboard';
+/** When set, feed + world map + (optional) full graph are scoped to this article category. */
+let currentCategory = null;
+/** Selected entity label; when set, feed/map/graph context is narrowed. */
+let currentEntity = null;
+/** One-shot flag: preserve entity context for next explicit entity action navigation. */
+let preserveEntityOnNextViewSwitch = false;
+/** When false, article list is demo data; category filter is client-side only. */
+let backendLive = true;
+const ARTICLE_FETCH_LIMIT = 5000;
+let lastWorldData = null;
+let worldProjectionMode = 'flat'; // flat | globe (3D-like)
+let worldCountryFeatures = null;
+let worldCountryLoadPromise = null;
+let worldCountryLoadAttempted = false;
+/** Orthographic: [λ, φ] in degrees, updated by pointer drag. */
+let worldGlobeRotation = [0, -12];
+/** Orthographic scale; null until first fit, then user zoom. */
+let worldGlobeScale = null;
+let worldMapRoot, worldMapZoomBehavior;
+let worldGlobeDrag = null;
+let worldGlobeDragAttached = false;
+let worldMapPulseToken = 0;
+let worldMapConnectionToken = 0;
+let selectedRegionIso2 = null;
+let userCountryIso2 = null;
+let regionScopedArticlesCache = null;
+let regionScopeLoadSeq = 0;
+let pipelineIsRunning = false;
+let pipelineMetricsFrozenDuringFetch = false;
+let pipelineSteps = [];
+let worldSpinInterval = null;
+let animateMetricsOnNextStableUpdate = false;
+const metricAnimTimers = {};
+const graphNeighborhoodFocusBySvg = {};
+let pendingGraphFocus = null;
+let simulation, svg, gMain, zoomBehavior;
+let simFull, svgFull, gMainFull, zoomFull;
+const topicTypeCache = new Map();
+
+// ────────────────────────────────────────────────────────────────────────────
+// Demo Data (shown when backend is not running)
+// ────────────────────────────────────────────────────────────────────────────
+const DEMO_ARTICLES = [
+  { id:'a1', title:'Federal Reserve holds rates amid inflation concerns', source:'Reuters', category:'finance', sentiment:'neutral', impact_score:0.82, summary:'Fed keeps rates steady as inflation remains above target, signalling caution on cuts.', themes:['monetary policy','inflation'], entities:[{name:'Fed',type:'ORG'},{name:'Jerome Powell',type:'PERSON'}], published_at:'2025-04-26T08:00:00' },
+  { id:'a2', title:'Nvidia unveils next-gen AI chip architecture', source:'TechCrunch', category:'technology', sentiment:'positive', impact_score:0.91, summary:'Blackwell Ultra chips promise 3× throughput gains for large language model training.', themes:['AI','semiconductor'], entities:[{name:'Nvidia',type:'ORG'},{name:'Jensen Huang',type:'PERSON'}], published_at:'2025-04-26T07:30:00' },
+  { id:'a3', title:'China imposes export controls on rare earth materials', source:'FT', category:'geopolitics', sentiment:'negative', impact_score:0.88, summary:'Beijing restricts dysprosium and terbium exports, threatening EV and defence supply chains.', themes:['trade war','supply chain'], entities:[{name:'China',type:'PLACE'},{name:'Rare Earth',type:'PRODUCT'}], published_at:'2025-04-26T06:45:00' },
+  { id:'a4', title:'Apple posts record services revenue, beats estimates', source:'Bloomberg', category:'business', sentiment:'positive', impact_score:0.75, summary:'Services division hits $24.2B, offsetting iPhone unit decline in Greater China.', themes:['earnings','consumer tech'], entities:[{name:'Apple',type:'ORG'},{name:'Tim Cook',type:'PERSON'}], published_at:'2025-04-26T06:00:00' },
+  { id:'a5', title:'EU Parliament passes landmark AI liability directive', source:'BBC Politics', category:'politics', sentiment:'neutral', impact_score:0.79, summary:'New rules require AI providers to disclose training data and compensate for provable harms.', themes:['AI regulation','legislation'], entities:[{name:'EU',type:'ORG'},{name:'Brussels',type:'PLACE'}], published_at:'2025-04-25T22:00:00' },
+  { id:'a6', title:'Bitcoin surges past $95,000 on ETF inflows', source:'MarketWatch', category:'finance', sentiment:'positive', impact_score:0.70, summary:'Spot BTC ETFs record largest single-day inflow since January 2024.', themes:['crypto','ETF'], entities:[{name:'Bitcoin',type:'PRODUCT'},{name:'BlackRock',type:'ORG'}], published_at:'2025-04-25T20:00:00' },
+  { id:'a7', title:'Google DeepMind claims protein-folding breakthrough', source:'Nature', category:'science', sentiment:'positive', impact_score:0.85, summary:'AlphaFold 3 predicts RNA-protein interactions with near-experimental accuracy.', themes:['AI','drug discovery'], entities:[{name:'DeepMind',type:'ORG'},{name:'AlphaFold',type:'PRODUCT'}], published_at:'2025-04-25T18:00:00' },
+  { id:'a8', title:'OpenAI raises $6.6B at $157B valuation', source:'WSJ', category:'business', sentiment:'positive', impact_score:0.88, summary:'New funding round backed by SoftBank and Microsoft extends runway through 2027.', themes:['AI','venture capital'], entities:[{name:'OpenAI',type:'ORG'},{name:'SoftBank',type:'ORG'}], published_at:'2025-04-25T16:00:00' },
+  { id:'a9', title:'UK energy bills to rise 12% in October', source:'BBC', category:'politics', sentiment:'negative', impact_score:0.72, summary:'Ofgem price cap reset pushes household bills higher as wholesale gas prices tick up.', themes:['energy','cost of living'], entities:[{name:'Ofgem',type:'ORG'},{name:'UK',type:'PLACE'}], published_at:'2025-04-25T14:00:00' },
+  { id:'a10', title:'Anthropic releases Claude 4 with extended context', source:'TechCrunch', category:'technology', sentiment:'positive', impact_score:0.80, summary:'New model supports 1M token context and shows improved reasoning on benchmarks.', themes:['AI','LLM'], entities:[{name:'Anthropic',type:'ORG'},{name:'Claude',type:'PRODUCT'}], published_at:'2025-04-25T12:00:00' },
+];
+
+const DEMO_GRAPH = {
+  nodes: [
+    {id:'a1',type:'article',label:'Fed holds rates',category:'finance',sentiment:'neutral'},
+    {id:'a2',type:'article',label:'Nvidia AI chip',category:'technology',sentiment:'positive'},
+    {id:'a3',type:'article',label:'China rare earth ban',category:'geopolitics',sentiment:'negative'},
+    {id:'a4',type:'article',label:'Apple services record',category:'business',sentiment:'positive'},
+    {id:'a5',type:'article',label:'EU AI directive',category:'politics',sentiment:'neutral'},
+    {id:'a6',type:'article',label:'Bitcoin $95k',category:'finance',sentiment:'positive'},
+    {id:'a7',type:'article',label:'AlphaFold breakthrough',category:'science',sentiment:'positive'},
+    {id:'a8',type:'article',label:'OpenAI $6.6B raise',category:'business',sentiment:'positive'},
+    {id:'e1',type:'entity',label:'Fed',entity_type:'ORG'},
+    {id:'e2',type:'entity',label:'Nvidia',entity_type:'ORG'},
+    {id:'e3',type:'entity',label:'China',entity_type:'PLACE'},
+    {id:'e4',type:'entity',label:'Apple',entity_type:'ORG'},
+    {id:'e5',type:'entity',label:'OpenAI',entity_type:'ORG'},
+    {id:'e6',type:'entity',label:'DeepMind',entity_type:'ORG'},
+    {id:'e7',type:'entity',label:'Anthropic',entity_type:'ORG'},
+    {id:'t1',type:'theme',label:'AI'},
+    {id:'t2',type:'theme',label:'inflation'},
+    {id:'t3',type:'theme',label:'trade war'},
+    {id:'t4',type:'theme',label:'regulation'},
+    {id:'t5',type:'theme',label:'earnings'},
+  ],
+  links: [
+    {source:'a1',target:'e1',relation:'MENTIONS',weight:1},{source:'a1',target:'t2',relation:'COVERS',weight:1},
+    {source:'a2',target:'e2',relation:'MENTIONS',weight:1},{source:'a2',target:'t1',relation:'COVERS',weight:1},
+    {source:'a3',target:'e3',relation:'MENTIONS',weight:1},{source:'a3',target:'t3',relation:'COVERS',weight:1},
+    {source:'a4',target:'e4',relation:'MENTIONS',weight:1},{source:'a4',target:'t5',relation:'COVERS',weight:1},
+    {source:'a5',target:'t4',relation:'COVERS',weight:1},{source:'a5',target:'t1',relation:'COVERS',weight:1},
+    {source:'a7',target:'e6',relation:'MENTIONS',weight:1},{source:'a7',target:'t1',relation:'COVERS',weight:1},
+    {source:'a8',target:'e5',relation:'MENTIONS',weight:1},{source:'a8',target:'t1',relation:'COVERS',weight:1},
+    {source:'a10',target:'e7',relation:'MENTIONS',weight:1},{source:'a10',target:'t1',relation:'COVERS',weight:1},
+    {source:'e2',target:'t1',relation:'ASSOCIATED_WITH',weight:2},
+    {source:'e5',target:'t1',relation:'ASSOCIATED_WITH',weight:2},
+    {source:'e3',target:'t3',relation:'ASSOCIATED_WITH',weight:2},
+    {source:'a2',target:'a7',relation:'CO_OCCURS',weight:1},{source:'a5',target:'a8',relation:'CO_OCCURS',weight:1},
+  ]
+};
+
+const DEMO_WORLD = {
+  countries: [
+    { iso2: 'US', name: 'United States', impact: 2.1, count: 3, positive: 1, negative: 0, neutral: 2, lat: 37.09, lon: -95.71,
+      headlines: ['Federal Reserve holds rates amid inflation concerns', 'Bitcoin surges past $95,000 on ETF inflows'] },
+    { iso2: 'CN', name: 'China', impact: 1.6, count: 1, positive: 0, negative: 1, neutral: 0, lat: 35.86, lon: 104.19,
+      headlines: ['China imposes export controls on rare earth materials'] },
+    { iso2: 'GB', name: 'United Kingdom', impact: 1.2, count: 1, positive: 0, negative: 1, neutral: 0, lat: 55.37, lon: -3.43,
+      headlines: ['UK energy bills to rise 12% in October'] },
+    { iso2: 'DE', name: 'Germany', impact: 1.0, count: 1, positive: 0, negative: 0, neutral: 1, lat: 51.16, lon: 10.45,
+      headlines: ['EU Parliament passes landmark AI liability directive'] },
+  ],
+  max_impact: 2.5,
+};
+
+// ────────────────────────────────────────────────────────────────────────────
+// Initialise
+// ────────────────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  updateClock();
+  setInterval(updateClock, 1000);
+  userCountryIso2 = detectUserCountryIso2();
+  loadData();
+});
+
+function updateClock() {
+  const now = new Date();
+  document.getElementById('topbar-time').textContent =
+    now.toLocaleDateString('en-GB', {weekday:'short', day:'numeric', month:'short'})
+    + ' · ' + now.toLocaleTimeString('en-GB', {hour:'2-digit', minute:'2-digit'});
+}
+
+function normCat(c) {
+  return String(c || '').trim().toLowerCase();
+}
+function normEntity(s) {
+  return String(s || '').trim().toLowerCase();
+}
+function canonicalEntityKey(raw) {
+  const n = normEntity(raw)
+    .replace(/\b(mr|mrs|ms|dr|president|former president|prime minister|pm)\.?\s+/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (!n) return '';
+  const ALIASES = {
+    'trump': 'donald trump',
+    'donald j trump': 'donald trump',
+    'president trump': 'donald trump',
+    'biden': 'joe biden',
+    'president biden': 'joe biden',
+    'putin': 'vladimir putin',
+    'zelensky': 'volodymyr zelensky',
+    'xi': 'xi jinping',
+    'fed': 'federal reserve',
+    'the fed': 'federal reserve',
+    'ecb': 'european central bank',
+    'boe': 'bank of england',
+    'pbo c': "people's bank of china",
+  };
+  return ALIASES[n] || n;
+}
+function displayEntityName(raw) {
+  const c = canonicalEntityKey(raw);
+  if (!c) return String(raw || '').trim();
+  return c
+    .split(' ')
+    .map((w) => (w ? w[0].toUpperCase() + w.slice(1) : w))
+    .join(' ');
+}
+function entityMatchesText(entityName, text) {
+  const e = canonicalEntityKey(entityName);
+  const t = normEntity(text || '');
+  if (!e || !t) return false;
+  if (t.includes(e)) return true;
+  const parts = e.split(' ').filter(Boolean);
+  if (parts.length > 1) {
+    const last = parts[parts.length - 1];
+    if (last.length >= 4 && t.includes(last)) return true;
+  }
+  return false;
+}
+
+function articleQueryString(forceAll = false) {
+  const parts = [`limit=${ARTICLE_FETCH_LIMIT}`, 'today=1'];
+  if (!forceAll && currentCategory) parts.push(`category=${encodeURIComponent(currentCategory)}`);
+  return `?${parts.join('&')}`;
+}
+
+function detectUserCountryIso2() {
+  try {
+    const locale =
+      (Array.isArray(navigator.languages) && navigator.languages[0]) ||
+      navigator.language ||
+      Intl.DateTimeFormat().resolvedOptions().locale ||
+      '';
+    const m = String(locale).match(/[-_]([A-Za-z]{2})\b/);
+    if (m) return m[1].toUpperCase();
+  } catch (_) {}
+  return null;
+}
+
+function uniqueArticleKey(a) {
+  const id = String(a && a.id || '').trim();
+  if (id) return `id:${id}`;
+  const t = normText(a && a.title);
+  const s = normText(a && a.source);
+  return `ts:${t}::${s}`;
+}
+
+function mergeUniqueArticles(...groups) {
+  const out = [];
+  const seen = new Set();
+  groups.forEach((list) => {
+    (list || []).forEach((a) => {
+      const k = uniqueArticleKey(a);
+      if (seen.has(k)) return;
+      seen.add(k);
+      out.push(a);
+    });
+  });
+  return out;
+}
+
+async function fetchArticlesWithParams(params) {
+  try {
+    const q = new URLSearchParams(params);
+    const r = await fetch(`${API}/articles?${q.toString()}`, { cache: 'no-store' });
+    if (!r.ok) return [];
+    const d = await r.json();
+    return d.articles || [];
+  } catch (_) {
+    return [];
+  }
+}
+
+async function enrichArticlesForUserScope(baseArticles) {
+  const extraRequests = [];
+  // Keep global feed intact; only add missing science coverage in "all" scope.
+  if (!currentCategory || normCat(currentCategory) === 'science') {
+    extraRequests.push(fetchArticlesWithParams({
+      limit: 400,
+      today: 1,
+      category: 'science',
+    }));
+  }
+  // Add local/regional context when country is known.
+  if (userCountryIso2 && !currentCategory) {
+    extraRequests.push(fetchArticlesWithParams({
+      limit: 300,
+      today: 1,
+      country: userCountryIso2,
+    }));
+    extraRequests.push(fetchArticlesWithParams({
+      limit: 300,
+      today: 1,
+      region: userCountryIso2,
+    }));
+  }
+  if (!extraRequests.length) return (baseArticles || []);
+  const extras = await Promise.all(extraRequests);
+  return mergeUniqueArticles(baseArticles || [], ...extras);
+}
+
+/** Refetch article list for the current category so filters are not limited to a global “top N”. */
+async function fetchArticleScope() {
+  if (!backendLive) {
+    if (!currentCategory) {
+      allArticles = await enrichArticlesForUserScope([...DEMO_ARTICLES]);
+    } else {
+      allArticles = await enrichArticlesForUserScope(
+        DEMO_ARTICLES.filter(a => normCat(a.category) === normCat(currentCategory))
+      );
+    }
+    await syncRegionScopeCache();
+    return;
+  }
+  try {
+    const r = await fetch(`${API}/articles${articleQueryString()}`);
+    if (!r.ok) return;
+    const d = await r.json();
+    allArticles = await enrichArticlesForUserScope(d.articles || []);
+    await syncRegionScopeCache();
+  } catch (e) {
+    console.warn('fetchArticleScope:', e);
+  }
+}
+
+function updateAskScopeHint() {
+  const el = document.getElementById('ask-scope-hint');
+  if (!el) return;
+  if (!currentCategory) {
+    el.textContent = 'Context: all recent articles in the database.';
+  } else {
+    el.textContent = `Context: ${currentCategory} articles only (sidebar filter).`;
+  }
+  renderAskPromptsForCategory(currentCategory);
+}
+
+const ASK_PROMPTS_BY_CATEGORY = {
+  all: [
+    "What sectors are under pressure?",
+    "Summarise today's biggest global stories",
+    "Key geopolitical risks this week",
+    "Which companies are in the news most?",
+    "What's the market sentiment today?",
+  ],
+  finance: [
+    "What moved rates, FX and equities today?",
+    "Which macro events matter most this week?",
+    "Summarise the biggest market movers",
+    "Are risk assets showing stress signals?",
+    "Where is inflation pressure building?",
+  ],
+  technology: [
+    "Summarise today's AI and semiconductor news",
+    "What are the top product and model launches?",
+    "Which tech firms face the biggest risks now?",
+    "Any regulation updates that affect AI?",
+    "What is driving cloud and infra competition?",
+  ],
+  business: [
+    "Summarise M&A and earnings highlights today",
+    "Which sectors show strongest business momentum?",
+    "Any supply chain disruptions I should know?",
+    "What companies saw major strategic changes?",
+    "What does today's business news imply next?",
+  ],
+  politics: [
+    "What are today's major policy changes?",
+    "Which elections or bills matter most now?",
+    "How could current politics affect markets?",
+    "Summarise top domestic political developments",
+    "What political risks increased this week?",
+  ],
+  geopolitics: [
+    "What are the top geopolitical flashpoints now?",
+    "How are sanctions and trade tensions evolving?",
+    "Which regions show highest conflict risk?",
+    "What events could disrupt global supply chains?",
+    "Summarise cross-border security developments",
+  ],
+  science: [
+    "What are today's top science breakthroughs?",
+    "Any major climate or health research updates?",
+    "Which discoveries may have near-term impact?",
+    "What science stories are drawing global attention?",
+    "Summarise high-impact research news today",
+  ],
+};
+
+function renderAskPromptsForCategory(category) {
+  const holder = document.getElementById('ask-suggestions');
+  const input = document.getElementById('ask-input');
+  if (!holder || !input) return;
+  const key = category ? normCat(category) : 'all';
+  const prompts = ASK_PROMPTS_BY_CATEGORY[key] || ASK_PROMPTS_BY_CATEGORY.all;
+  holder.innerHTML = prompts
+    .map((q) => `<span class="sug-q" onclick="askPreset(this)">${q}</span>`)
+    .join('');
+  input.placeholder = `e.g. ${prompts[0]}`;
+}
+
+/** Stats + feed + world map - fast; full graph may lag until pipeline step completes. */
+async function loadDashboardPartial() {
+  const runAllScope = pipelineIsRunning;
+  const [statsRes, articlesRes] = await Promise.allSettled([
+    fetch(`${API}/stats`, { cache: 'no-store' }),
+    fetch(`${API}/articles${articleQueryString(runAllScope)}`, { cache: 'no-store' }),
+  ]);
+
+  // Keep article list moving in real time while pipeline runs, even if stats endpoint blips.
+  if (articlesRes.status === 'fulfilled' && articlesRes.value.ok) {
+    const artData = await articlesRes.value.json();
+    allArticles = await enrichArticlesForUserScope(artData.articles || []);
+    await syncRegionScopeCache();
+    renderFeed(getFeedBaseArticles());
+    updateAskScopeHint();
+  }
+
+  if (statsRes.status === 'fulfilled' && statsRes.value.ok) {
+    const stats = await statsRes.value.json();
+    // During a live run, stage progress metrics are the source of truth.
+    // Avoid overwriting those in-flight counters with slower snapshot stats.
+    if (!pipelineIsRunning) {
+      updateStats(stats);
+    }
+  }
+
+  // World map depends on articles as context; refresh whenever partial poll succeeds.
+  await loadWorldImpactAndMap();
+}
+
+function applyPipelineProgress(last) {
+  const el = document.getElementById('last-run-time');
+  if (!el) return;
+  if (last.status === 'running' && last.progress) {
+    const stage = String(last.progress.stage || '').toLowerCase();
+    const wasFrozen = pipelineMetricsFrozenDuringFetch;
+    pipelineMetricsFrozenDuringFetch = (stage === 'fetch');
+    if (wasFrozen && !pipelineMetricsFrozenDuringFetch) {
+      animateMetricsOnNextStableUpdate = true;
+    }
+    el.textContent = last.progress.message || 'Running…';
+    const st = document.getElementById('pipeline-status');
+    if (st) st.innerHTML = '<span class="status-dot" style="background:#38bdf8"></span>running';
+    setPipelineRunning(true);
+    addPipelineStep(last.progress.message || 'Running');
+    if (last.progress.metrics) {
+      applyLivePipelineMetrics(last.progress.metrics);
+    }
+  }
+}
+
+function applyLivePipelineMetrics(metrics) {
+  if (!metrics || typeof metrics !== 'object') return;
+  const readNum = (id) => {
+    const el = document.getElementById(id);
+    if (!el) return 0;
+    const cur = Number(String(el.textContent || '0').replace(/[^\d.-]/g, ''));
+    return Number.isFinite(cur) ? Math.round(cur) : 0;
+  };
+  const animateTo = (id, next) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const from = readNum(id);
+    const to = Math.round(Number(next || 0));
+    if (!Number.isFinite(to) || to === from) {
+      el.textContent = String(Number.isFinite(to) ? to : from);
+      return;
+    }
+    if (metricAnimTimers[id]) clearInterval(metricAnimTimers[id]);
+    // Match the original count-up pattern used by animateNum (24 ticks × 30ms).
+    const steps = 24;
+    const stepMs = 30;
+    const delta = to - from;
+    let i = 0;
+    metricAnimTimers[id] = setInterval(() => {
+      i += 1;
+      const value = i >= steps ? to : Math.round(from + (delta * i) / steps);
+      el.textContent = String(value);
+      if (i >= steps) {
+        clearInterval(metricAnimTimers[id]);
+        delete metricAnimTimers[id];
+      }
+    }, stepMs);
+  };
+  const setNum = (id, value, monotonic = true) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const n = Math.round(Number(value || 0));
+    if (!Number.isFinite(n)) return;
+    const currentVal = readNum(id);
+    const next = monotonic ? Math.max(currentVal, n) : n;
+    animateTo(id, next);
+  };
+  const savedTotal = metrics.saved_articles_total;
+  if (savedTotal != null) {
+    setNum('s-articles', Number(savedTotal || 0), true);
+  } else {
+    const articleDelta = metrics.articles_fetched ?? metrics.articles_total_live ?? metrics.graph_articles_used;
+    if (articleDelta != null) setNum('s-articles', Number(articleDelta || 0), true);
+  }
+
+  const edgeTotal = metrics.relations_built ?? metrics.graph_edges;
+  if (edgeTotal != null) setNum('s-edges', Number(edgeTotal || 0), true);
+
+  if (metrics.positive_signals != null) setNum('s-pos', Number(metrics.positive_signals || 0), true);
+  if (metrics.negative_signals != null) setNum('s-neg', Number(metrics.negative_signals || 0), true);
+  if (metrics.regions_count != null) setNum('s-nodes', Number(metrics.regions_count || 0), true);
+}
+
+function applyPipelineSummaryMetrics(summary) {
+  if (!summary || typeof summary !== 'object') return;
+  applyLivePipelineMetrics({
+    articles_total_live: summary.graph_articles_used ?? summary.articles_fetched,
+    relations_built: summary.graph_edges,
+  });
+}
+
+function normalizePipelineStep(msg) {
+  return String(msg || '').replace(/\s+/g, ' ').trim();
+}
+
+function renderPipelineSteps() {
+  const list = document.getElementById('pipeline-steps-list');
+  const head = document.getElementById('pipeline-steps-head');
+  if (!list) return;
+  if (!pipelineIsRunning || !pipelineSteps.length) {
+    if (head) head.classList.add('hidden');
+    list.innerHTML = '';
+    return;
+  }
+  if (head) head.classList.remove('hidden');
+  const visible = pipelineSteps.slice(-6);
+  list.innerHTML = visible.map((s, idx) => `
+    <div class="pipeline-step ${idx === visible.length - 1 ? 'current' : ''}">• ${escAttr(s)}</div>
+  `).join('');
+  list.scrollTop = list.scrollHeight;
+}
+
+function addPipelineStep(msg) {
+  const step = normalizePipelineStep(msg);
+  if (!step) return;
+  if (pipelineSteps[pipelineSteps.length - 1] === step) return;
+  pipelineSteps.push(step);
+  if (pipelineSteps.length > 30) pipelineSteps = pipelineSteps.slice(-30);
+  renderPipelineSteps();
+}
+
+function setPipelineRunning(next) {
+  const wasRunning = pipelineIsRunning;
+  pipelineIsRunning = !!next;
+  if (pipelineIsRunning) {
+    pipelineMetricsFrozenDuringFetch = true;
+    if (worldProjectionMode !== 'globe') {
+      worldProjectionMode = 'globe';
+      const btn = document.getElementById('world-map-toggle');
+      if (btn) btn.textContent = 'Switch to 2D map';
+    }
+    if (!worldSpinInterval) {
+      worldSpinInterval = setInterval(() => {
+        if (!pipelineIsRunning) return;
+        worldGlobeRotation[0] = (worldGlobeRotation[0] + 0.45) % 360;
+        if (lastWorldData && currentView === 'dashboard') buildWorldMap(lastWorldData);
+      }, 70);
+    }
+  } else {
+    pipelineMetricsFrozenDuringFetch = false;
+    if (wasRunning) animateMetricsOnNextStableUpdate = true;
+    if (worldSpinInterval) {
+      clearInterval(worldSpinInterval);
+      worldSpinInterval = null;
+    }
+    worldMapConnectionToken += 1;
+  }
+  renderPipelineSteps();
+}
+
+function getFeedBaseArticles() {
+  if (pipelineIsRunning) {
+    // During a run, show full live ingestion stream (no region narrowing).
+    return allArticles;
+  }
+  let base = allArticles;
+  if (selectedRegionIso2) {
+    if (Array.isArray(regionScopedArticlesCache) && regionScopedArticlesCache.length) {
+      base = regionScopedArticlesCache;
+    } else {
+      // Always enforce region scope immediately on selection, even before async cache fill.
+      base = getRegionScopedArticlesFromBase(allArticles, selectedRegionIso2);
+    }
+  }
+  if (!backendLive && currentCategory) {
+    base = base.filter(a => normCat(a.category) === normCat(currentCategory));
+  }
+  if (currentEntity) {
+    const key = canonicalEntityKey(currentEntity);
+    base = base.filter((a) =>
+      (a.entities || []).some((e) => canonicalEntityKey(e.name || e) === key)
+    );
+  }
+  return base;
+}
+
+function linkEndpointId(x) {
+  if (x == null) return '';
+  return typeof x === 'object' && x && 'id' in x ? x.id : String(x);
+}
+
+/** Subgraph scoped by category and/or selected entity. */
+function filterGraphData(g, articles, cat, entityName = null) {
+  const hasCat = !!cat;
+  const hasEntity = !!entityName;
+  if (!hasCat && !hasEntity) return g;
+  const inCat = new Set(
+    (articles || [])
+      .filter(a => !hasCat || normCat(a.category) === normCat(cat))
+      .filter(a => {
+        if (!hasEntity) return true;
+        const ek = canonicalEntityKey(entityName);
+        return (a.entities || []).some((e) => canonicalEntityKey(e.name || e) === ek);
+      })
+      .map(a => String(a.id))
+  );
+  const byId = new Map(g.nodes.map(n => [n.id, n]));
+  const isArticleInCat = (n) => {
+    if (!n || n.type !== 'article') return false;
+    const key = String(n.id).replace(/^art:/, '');
+    if (inCat.has(key)) return true;
+    if (hasCat && n.category != null && normCat(n.category) === normCat(cat)) return true;
+    return false;
+  };
+  const adj = new Map();
+  const addE = (a, b) => {
+    if (!a || !b) return;
+    if (!adj.has(a)) adj.set(a, []);
+    adj.get(a).push(b);
+  };
+  g.links.forEach(l => {
+    const s = linkEndpointId(l.source);
+    const t = linkEndpointId(l.target);
+    addE(s, t);
+    addE(t, s);
+  });
+  const seeds = g.nodes.filter(isArticleInCat).map(n => n.id);
+  const seen = new Set(seeds);
+  const q = [...seeds];
+  while (q.length) {
+    const u = q.shift();
+    const nbr = adj.get(u);
+    if (!nbr) continue;
+    nbr.forEach((v) => {
+      if (seen.has(v)) return;
+      const vn = byId.get(v);
+      if (!vn) return;
+      if (vn.type === 'article' && !isArticleInCat(vn)) return;
+      seen.add(v);
+      q.push(v);
+    });
+  }
+  const nodes = g.nodes.filter(n => seen.has(n.id));
+  const idSet = new Set(nodes.map(n => n.id));
+  const links = g.links.filter(
+    l => idSet.has(linkEndpointId(l.source)) && idSet.has(linkEndpointId(l.target))
+  );
+  return { nodes, links };
+}
+
+/** Re-run the active view with the current `allArticles` + `currentCategory` (no forced navigation). */
+function applyCategoryToCurrentView() {
+  if (currentView === 'dashboard') {
+    renderFeed(getFeedBaseArticles());
+    loadWorldImpactAndMap();
+  } else if (currentView === 'graph' && graphData.nodes.length) {
+    const fg = filterGraphData(graphData, allArticles, currentCategory, currentEntity);
+    setTimeout(() => buildGraph('graph-canvas-full', fg, true), 50);
+  } else if (currentView === 'entities') {
+    loadEntities();
+  }
+  refreshScopedMetrics();
+  updateAskScopeHint();
+}
+
+async function loadWorldImpactAndMap() {
+  const sub = document.getElementById('world-map-sub');
+  if (sub) {
+    const chunks = [];
+    if (currentCategory) chunks.push(`category: ${currentCategory}`);
+    if (currentEntity) chunks.push(`topic: ${currentEntity}`);
+    if (currentSearchQuery) chunks.push(`search: ${currentSearchQuery}`);
+    const scope = chunks.length ? `Filtered by ${chunks.join(' · ')}` : 'Global scope';
+    sub.textContent = `${scope} · circle size = cumulative impact · hover for headlines and sentiment mix.`;
+  }
+  const q = currentCategory
+    ? `?category=${encodeURIComponent(currentCategory)}`
+    : '';
+  try {
+    const r = await fetch(`${API}/world/impact${q}`);
+    if (!r.ok) throw new Error('world impact');
+    let w = await r.json();
+    if (currentEntity) {
+      const ek = currentEntity;
+      w = {
+        ...w,
+        countries: (w.countries || []).filter((c) =>
+          (c.headlines || []).some((h) => entityMatchesText(ek, h))
+        ),
+      };
+    }
+    if (currentSearchQuery) {
+      const lo = currentSearchQuery.toLowerCase();
+      w = {
+        ...w,
+        countries: (w.countries || []).filter((c) =>
+          String(c.name || '').toLowerCase().includes(lo) ||
+          String(c.iso2 || '').toLowerCase().includes(lo) ||
+          (c.headlines || []).some((h) => String(h || '').toLowerCase().includes(lo))
+        ),
+      };
+    }
+    lastWorldData = w;
+    if (!currentSearchQuery && selectedRegionIso2 && !(w.countries || []).some((c) => normCat(c.iso2) === normCat(selectedRegionIso2))) {
+      selectedRegionIso2 = null;
+      regionScopedArticlesCache = null;
+    }
+    buildWorldMap(w);
+    refreshScopedMetrics();
+  } catch (e) {
+    console.warn('World impact fallback:', e.message);
+    lastWorldData = DEMO_WORLD;
+    if (!currentSearchQuery && selectedRegionIso2 && !(DEMO_WORLD.countries || []).some((c) => normCat(c.iso2) === normCat(selectedRegionIso2))) {
+      selectedRegionIso2 = null;
+      regionScopedArticlesCache = null;
+    }
+    buildWorldMap(DEMO_WORLD);
+    refreshScopedMetrics();
+  }
+}
+
+function ensureWorldCountryFeatures() {
+  if (worldCountryFeatures) return Promise.resolve(worldCountryFeatures);
+  if (worldCountryLoadPromise) return worldCountryLoadPromise;
+  worldCountryLoadAttempted = true;
+  worldCountryLoadPromise = fetch('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json')
+    .then((r) => {
+      if (!r.ok) throw new Error('countries atlas unavailable');
+      return r.json();
+    })
+    .then((topology) => {
+      if (!window.topojson) throw new Error('topojson not loaded');
+      const obj = topology.objects && topology.objects.countries;
+      if (!obj) throw new Error('countries object missing');
+      worldCountryFeatures = topojson.feature(topology, obj).features || [];
+      return worldCountryFeatures;
+    })
+    .catch((e) => {
+      console.warn('Country shapes unavailable:', e.message);
+      worldCountryFeatures = null;
+      return null;
+    });
+  return worldCountryLoadPromise;
+}
+
+function toggleWorldProjection() {
+  worldProjectionMode = worldProjectionMode === 'flat' ? 'globe' : 'flat';
+  if (worldProjectionMode === 'flat') {
+    worldGlobeScale = null;
+  }
+  const btn = document.getElementById('world-map-toggle');
+  if (btn) {
+    btn.textContent = worldProjectionMode === 'flat'
+      ? 'Switch to Globe (3D-like)'
+      : 'Switch to 2D map';
+  }
+  if (lastWorldData) buildWorldMap(lastWorldData);
+}
+
+function ensureWorldGlobeDrag() {
+  if (worldGlobeDrag || typeof d3 === 'undefined') return;
+  worldGlobeDrag = d3
+    .drag()
+    .filter((event) => !event.button)
+    .on('start', function (event) {
+      if (worldProjectionMode !== 'globe') return;
+      d3.select(this).style('cursor', 'grabbing');
+    })
+    .on('drag', (event) => {
+      if (worldProjectionMode !== 'globe') return;
+      const k = 0.65;
+      worldGlobeRotation[0] += event.dx * k;
+      worldGlobeRotation[1] = Math.max(
+        -80,
+        Math.min(80, worldGlobeRotation[1] - event.dy * k)
+      );
+      if (lastWorldData) buildWorldMap(lastWorldData);
+    })
+    .on('end', function () {
+      d3.select(this).style('cursor', 'grab');
+    });
+}
+
+/**
+ * In globe mode we keep the drag listener on the root SVG so pointer-drag
+ * can rotate across rebuilds; do not remove `.drag` in that case.
+ */
+function clearWorldMapInteractions(s, { keepGlobeDrag = false } = {}) {
+  s.on('wheel.zoom', null);
+  s.on('mousedown.zoom', null);
+  s.on('dblclick.zoom', null);
+  s.on('wheel.globe', null);
+  if (keepGlobeDrag) return;
+  s.on('wheel.drag', null);
+  s.on('mousedown.drag', null);
+  s.on('touchstart.drag', null);
+  s.on('pointerdown.drag', null);
+  worldGlobeDragAttached = false;
+}
+
+function buildWorldMap(data) {
+  const wrap = document.querySelector('.world-map-wrap');
+  const svgEl = document.getElementById('world-map-svg');
+  const tip = document.getElementById('world-map-tooltip');
+  if (!wrap || !svgEl || !d3 || !d3.geoNaturalEarth1) return;
+
+  const W = Math.max(wrap.clientWidth, 200);
+  const H = Math.max(wrap.clientHeight, 220);
+  const s = d3.select(svgEl);
+  worldMapPulseToken += 1;
+  const pulseToken = worldMapPulseToken;
+  const inGlobe = worldProjectionMode === 'globe';
+  clearWorldMapInteractions(s, { keepGlobeDrag: inGlobe });
+  s.selectAll('*').remove();
+  s.attr('viewBox', `0 0 ${W} ${H}`);
+
+  const projection = worldProjectionMode === 'globe'
+    ? d3.geoOrthographic().clipAngle(90)
+    : d3.geoNaturalEarth1();
+  if (worldProjectionMode === 'globe') {
+    projection.fitSize([W, H], { type: 'Sphere' });
+    if (worldGlobeScale != null) {
+      projection.scale(worldGlobeScale);
+    } else {
+      worldGlobeScale = projection.scale();
+    }
+    projection.rotate(worldGlobeRotation);
+  } else {
+    projection.fitSize([W, H], { type: 'Sphere' });
+  }
+  const path = d3.geoPath(projection);
+  const graticule = d3.geoGraticule();
+
+  const gRoot = s.append('g');
+  worldMapRoot = gRoot;
+
+  if (worldProjectionMode === 'flat') {
+    s.style('cursor', 'grab');
+    const zoom = d3
+      .zoom()
+      .scaleExtent([0.5, 12])
+      .on('zoom', (e) => gRoot.attr('transform', e.transform));
+    s.call(zoom);
+    worldMapZoomBehavior = zoom;
+  } else {
+    s.style('cursor', 'grab');
+    worldMapZoomBehavior = null;
+    ensureWorldGlobeDrag();
+    if (!worldGlobeDragAttached) {
+      s.call(worldGlobeDrag);
+      worldGlobeDragAttached = true;
+    }
+    s.on('wheel.globe', (event) => {
+      event.preventDefault();
+      const sc = worldGlobeScale != null ? worldGlobeScale : 300;
+      const next = event.deltaY < 0 ? sc * 1.12 : sc * 0.9;
+      worldGlobeScale = Math.max(60, Math.min(2400, next));
+      if (lastWorldData) buildWorldMap(lastWorldData);
+    });
+  }
+
+  gRoot.append('path')
+    .datum({ type: 'Sphere' })
+    .attr('d', path)
+    .attr('fill', '#d8e4ef')
+    .attr('stroke', '#9aa6b0')
+    .attr('stroke-width', 0.5);
+
+  gRoot.append('path')
+    .datum(graticule())
+    .attr('d', path)
+    .attr('fill', 'none')
+    .attr('stroke', 'rgba(0,0,0,0.07)')
+    .attr('stroke-width', 0.5);
+
+  if (worldCountryFeatures) {
+    gRoot.append('g')
+      .selectAll('path')
+      .data(worldCountryFeatures)
+      .join('path')
+      .attr('d', path)
+      .attr('fill', 'rgba(255,255,255,0.35)')
+      .attr('stroke', 'rgba(0,0,0,0.2)')
+      .attr('stroke-width', 0.45);
+  } else if (!worldCountryLoadAttempted) {
+    ensureWorldCountryFeatures().then(() => {
+      if (lastWorldData) buildWorldMap(lastWorldData);
+    });
+  }
+
+  const countries = (data && data.countries) || [];
+  const maxI = (data && data.max_impact) > 0 ? data.max_impact : 1;
+  const rScale = d3.scaleSqrt().domain([0, maxI]).range([4, 28]);
+  const entityKey = currentEntity ? normEntity(currentEntity) : null;
+  const countryMatchesEntity = (c) => {
+    if (!entityKey) return true;
+    const head = (c.headlines || []).join(' ');
+    return normEntity(head).includes(entityKey);
+  };
+  const hasEntityMatches = entityKey
+    ? countries.some((c) => countryMatchesEntity(c))
+    : false;
+
+  const impactNorm = (val) => Math.max(0, Math.min(1, (val || 0) / maxI));
+  const colorScale = d3
+    .scaleLinear()
+    .domain([0, 0.55, 1])
+    .range(['#1e8f5e', '#2a6fa8', '#c0392b'])
+    .clamp(true);
+  const color = (c) => colorScale(impactNorm(c.impact));
+
+  if (pipelineIsRunning && worldProjectionMode === 'globe') {
+    const major = [...countries]
+      .sort((a, b) => Number(b.impact || 0) - Number(a.impact || 0))
+      .slice(0, 24);
+    const continentOf = (c) => {
+      const lat = Number(c.lat || 0);
+      const lon = Number(c.lon || 0);
+      if (lat < -55) return 'AN';
+      if (lat >= 15 && lon >= -170 && lon <= -30) return 'NA';
+      if (lat < 15 && lat >= -60 && lon >= -95 && lon <= -30) return 'SA';
+      if (lat >= 35 && lon >= -20 && lon <= 55) return 'EU';
+      if (lat < 35 && lat >= -35 && lon >= -20 && lon <= 55) return 'AF';
+      if (lon > 55 && lon <= 180 && lat >= -10) return 'AS';
+      if ((lon > 110 && lon <= 180 && lat < -10) || (lon >= 95 && lon <= 180 && lat < 0)) return 'OC';
+      return 'AS';
+    };
+    const byContinent = new Map();
+    major.forEach((c) => {
+      const key = continentOf(c);
+      const prev = byContinent.get(key);
+      if (!prev || Number(c.impact || 0) > Number(prev.impact || 0)) {
+        byContinent.set(key, c);
+      }
+    });
+    const anchors = ['NA', 'SA', 'EU', 'AF', 'AS', 'OC']
+      .map((k) => byContinent.get(k))
+      .filter(Boolean);
+    const hubs = major.slice(0, 3);
+    const arcPairs = new Set();
+    const arcs = [];
+    const pushArc = (a, b) => {
+      if (!a || !b || a === b) return;
+      const keyA = String(a.iso2 || a.name || '');
+      const keyB = String(b.iso2 || b.name || '');
+      const key = [keyA, keyB].sort().join('::');
+      if (!keyA || !keyB || arcPairs.has(key)) return;
+      arcPairs.add(key);
+      arcs.push({ source: a, target: b });
+    };
+    // Ensure visible cross-continent world mesh.
+    for (let i = 0; i < anchors.length; i++) {
+      for (let j = i + 1; j < anchors.length; j++) {
+        pushArc(anchors[i], anchors[j]);
+      }
+    }
+    // Add a few high-impact routes from top hubs.
+    hubs.forEach((h) => {
+      anchors.forEach((a) => pushArc(h, a));
+    });
+
+    const arcSel = gRoot.append('g')
+      .attr('class', 'world-conn-layer')
+      .selectAll('path')
+      .data(arcs)
+      .join('path')
+      .attr('fill', 'none')
+      .attr('stroke', '#60a5fa')
+      .attr('stroke-opacity', 0.78)
+      .attr('stroke-width', 1.15)
+      .attr('stroke-linecap', 'round')
+      .attr('d', (d) => {
+        const interp = d3.geoInterpolate([d.source.lon, d.source.lat], [d.target.lon, d.target.lat]);
+        const points = Array.from({ length: 24 }, (_, i) => interp(i / 23));
+        return path({ type: 'LineString', coordinates: points });
+      })
+      .attr('stroke-dasharray', '8 10')
+      .attr('stroke-dashoffset', 18);
+
+    gRoot.append('g')
+      .selectAll('circle')
+      .data(major)
+      .join('circle')
+      .attr('fill', '#9fd4ff')
+      .attr('fill-opacity', (d) => anchors.includes(d) ? 0.95 : 0.62)
+      .attr('stroke', '#dbeafe')
+      .attr('stroke-width', (d) => anchors.includes(d) ? 1.5 : 0.75)
+      .each(function (d) {
+        const p = projection([d.lon, d.lat]);
+        if (!p) return;
+        d3.select(this)
+          .attr('cx', p[0])
+          .attr('cy', p[1])
+          .attr('r', anchors.includes(d) ? 3.6 : 2.1);
+      });
+
+    worldMapConnectionToken += 1;
+    const token = worldMapConnectionToken;
+    const animateArcs = () => {
+      if (token !== worldMapConnectionToken || !pipelineIsRunning || worldProjectionMode !== 'globe') return;
+      arcSel
+        .transition()
+        .duration(900)
+        .ease(d3.easeLinear)
+        .attr('stroke-dashoffset', 0)
+        .transition()
+        .duration(900)
+        .ease(d3.easeLinear)
+        .attr('stroke-dashoffset', -18)
+        .on('end', (_, i, nodes) => {
+          if (nodes && i === nodes.length - 1) animateArcs();
+        });
+    };
+    animateArcs();
+    if (tip) tip.style.display = 'none';
+    return;
+  }
+
+  const pulseSel = gRoot.selectAll('circle.land-pulse')
+    .data(countries)
+    .join('circle')
+    .attr('class', 'land-pulse')
+    .attr('fill', d => color(d))
+    .attr('fill-opacity', d => {
+      const base = 0.14 + impactNorm(d.impact) * 0.14;
+      if (!hasEntityMatches) return base;
+      return countryMatchesEntity(d) ? Math.min(0.36, base + 0.12) : Math.max(0.035, base * 0.33);
+    })
+    .attr('stroke', 'none')
+    .each(function (d) {
+      const p = projection([d.lon, d.lat]);
+      if (!p) return;
+      d3.select(this)
+        .attr('cx', p[0])
+        .attr('cy', p[1])
+        .attr('r', rScale(d.impact) * 1.35);
+    });
+
+  const dotSel = gRoot.selectAll('circle.land-dot')
+    .data(countries)
+    .join('circle')
+    .attr('class', 'land-dot')
+    .attr('fill', d => color(d))
+    .attr('fill-opacity', d => {
+      if (!hasEntityMatches) return 1;
+      return countryMatchesEntity(d) ? 1 : 0.25;
+    })
+    .attr('stroke', d => {
+      const isSelected = selectedRegionIso2 && normCat(d.iso2) === normCat(selectedRegionIso2);
+      if (isSelected) return '#f59e0b';
+      return (hasEntityMatches && countryMatchesEntity(d)) ? '#c8622a' : '#fff';
+    })
+    .attr('stroke-width', d => {
+      const isSelected = selectedRegionIso2 && normCat(d.iso2) === normCat(selectedRegionIso2);
+      if (isSelected) return 3.2;
+      return (hasEntityMatches && countryMatchesEntity(d)) ? 2.8 : 1.2;
+    })
+    .attr('cursor', 'pointer')
+    .each(function (d) {
+      const p = projection([d.lon, d.lat]);
+      if (!p) return;
+      d3.select(this)
+        .attr('cx', p[0])
+        .attr('cy', p[1])
+        .attr('r', rScale(d.impact));
+    })
+    .on('mousemove', (e, d) => {
+      if (!tip) return;
+      const hl = (d.headlines || []).slice(0, 4);
+      const p = d.positive || 0, n = d.negative || 0, u = d.neutral || 0;
+      tip.innerHTML = `
+        <div class="mt-title">${d.name || d.iso2} (${d.iso2})</div>
+        <div class="mt-meta">Impact sum ${(d.impact || 0).toFixed(2)} · ${d.count || 0} story refs ·
+          <span style="color:#1e8f5e">+${p}</span> /
+          <span style="color:#aaa">o${u}</span> /
+          <span style="color:#e74c3c">−${n}</span></div>
+        <div class="mt-line">${hl.map(h => `· ${h}`).join('<br>') || '-'}</div>
+      `;
+      tip.style.display = 'block';
+      const panel = document.getElementById('world-map-panel');
+      const pr = (panel || wrap).getBoundingClientRect();
+      tip.style.left = `${e.clientX - pr.left + 12}px`;
+      tip.style.top = `${e.clientY - pr.top - 8}px`;
+    })
+    .on('click', async (_, d) => {
+      const wasSelected = selectedRegionIso2 && normCat(selectedRegionIso2) === normCat(d.iso2);
+      selectedRegionIso2 = wasSelected ? null : d.iso2;
+      if (selectedRegionIso2) {
+        const seq = ++regionScopeLoadSeq;
+        regionScopedArticlesCache = await loadRegionScopedArticles(selectedRegionIso2);
+        if (seq !== regionScopeLoadSeq) return;
+      } else {
+        regionScopedArticlesCache = null;
+      }
+      buildWorldMap(data);
+      renderFeed(getFeedBaseArticles());
+      refreshScopedMetrics();
+      showToast(selectedRegionIso2 ? `Region: ${d.name || d.iso2}` : 'Region filter cleared');
+    })
+    .on('mouseleave', () => { if (tip) tip.style.display = 'none'; });
+
+  const focusSel = gRoot.selectAll('circle.land-focus')
+    .data(hasEntityMatches ? countries.filter(countryMatchesEntity) : [])
+    .join('circle')
+    .attr('class', 'land-focus')
+    .attr('fill', 'none')
+    .attr('stroke', '#c8622a')
+    .attr('stroke-opacity', 0.65)
+    .attr('stroke-width', 1.4)
+    .attr('pointer-events', 'none')
+    .each(function (d) {
+      const p = projection([d.lon, d.lat]);
+      if (!p) return;
+      d3.select(this)
+        .attr('cx', p[0])
+        .attr('cy', p[1])
+        .attr('r', rScale(d.impact) * 1.15);
+    });
+
+  // Subtle breathing effect so impact intensity is visible at a glance.
+  const pulseOnce = () => {
+    if (pulseToken !== worldMapPulseToken) return;
+    pulseSel
+      .transition()
+      .duration(1450)
+      .ease(d3.easeSinInOut)
+      .attr('fill-opacity', d => {
+        const base = 0.08 + impactNorm(d.impact) * 0.08;
+        if (!hasEntityMatches) return base;
+        return countryMatchesEntity(d) ? Math.min(0.22, base + 0.08) : Math.max(0.02, base * 0.3);
+      })
+      .attr('r', d => rScale(d.impact) * 1.15)
+      .transition()
+      .duration(1650)
+      .ease(d3.easeSinInOut)
+      .attr('fill-opacity', d => {
+        const base = 0.14 + impactNorm(d.impact) * 0.14;
+        if (!hasEntityMatches) return base;
+        return countryMatchesEntity(d) ? Math.min(0.36, base + 0.12) : Math.max(0.035, base * 0.33);
+      })
+      .attr('r', d => rScale(d.impact) * 1.35)
+      .on('end', (_, i, nodes) => {
+        if (pulseToken !== worldMapPulseToken) return;
+        if (nodes && i === nodes.length - 1) pulseOnce();
+      });
+    dotSel
+      .transition()
+      .duration(1450)
+      .ease(d3.easeSinInOut)
+      .attr('r', d => Math.max(3, rScale(d.impact) * 0.92))
+      .transition()
+      .duration(1650)
+      .ease(d3.easeSinInOut)
+      .attr('r', d => rScale(d.impact));
+
+    focusSel
+      .transition()
+      .duration(1450)
+      .ease(d3.easeSinInOut)
+      .attr('stroke-opacity', 0.25)
+      .attr('r', d => rScale(d.impact) * 1.42)
+      .transition()
+      .duration(1650)
+      .ease(d3.easeSinInOut)
+      .attr('stroke-opacity', 0.68)
+      .attr('r', d => rScale(d.impact) * 1.15);
+  };
+  pulseOnce();
+  worldMapConnectionToken += 1;
+}
+
+function worldMapZoom(factor) {
+  if (worldProjectionMode === 'globe') {
+    const sc = worldGlobeScale != null ? worldGlobeScale : 300;
+    worldGlobeScale = Math.max(60, Math.min(2400, sc * factor));
+    if (lastWorldData) buildWorldMap(lastWorldData);
+    return;
+  }
+  if (!worldMapRoot || !worldMapZoomBehavior) return;
+  const s = d3.select('#world-map-svg');
+  s.transition().duration(200).call(worldMapZoomBehavior.scaleBy, factor);
+}
+function worldMapZoomReset() {
+  if (worldProjectionMode === 'globe') {
+    worldGlobeRotation = [0, -12];
+    worldGlobeScale = null;
+    if (lastWorldData) buildWorldMap(lastWorldData);
+    return;
+  }
+  if (!worldMapRoot || !worldMapZoomBehavior) return;
+  const s = d3.select('#world-map-svg');
+  s.transition().duration(300).call(worldMapZoomBehavior.transform, d3.zoomIdentity);
+}
+
+async function loadData() {
+  try {
+    setPipelineRunning(false);
+    // On page refresh / full data load, animate metric cards upward.
+    animateMetricsOnNextStableUpdate = true;
+    backendLive = true;
+    const [statsR, articlesR, graphR] = await Promise.all([
+      fetch(`${API}/stats`),
+      fetch(`${API}/articles${articleQueryString()}`),
+      fetch(`${API}/graph`),
+    ]);
+    if (!statsR.ok) throw new Error('Backend offline');
+    const stats    = await statsR.json();
+    const artData  = await articlesR.json();
+    const gData    = await graphR.json();
+
+    updateStats(stats);
+    allArticles = await enrichArticlesForUserScope(artData.articles || []);
+    await syncRegionScopeCache();
+    graphData   = gData;
+    renderFeed(getFeedBaseArticles());
+    await loadWorldImpactAndMap();
+    updateAskScopeHint();
+
+    document.getElementById('last-run-time').textContent =
+      'Live · ' + new Date().toLocaleTimeString('en-GB', {hour:'2-digit',minute:'2-digit'});
+    const st = document.getElementById('pipeline-status');
+    if (st) st.innerHTML = '<span class="status-dot"></span>live';
+  } catch (e) {
+    setPipelineRunning(false);
+    // Backend offline - use demo data
+    backendLive = false;
+    console.warn('Backend offline, using demo data:', e.message);
+    document.getElementById('pipeline-status').innerHTML =
+      '<span style="width:7px;height:7px;border-radius:50%;background:#f59e0b;display:inline-block;margin-right:5px"></span>demo';
+    updateStats({
+      total_articles: DEMO_ARTICLES.length,
+      total_nodes: DEMO_GRAPH.nodes.length,
+      total_edges: DEMO_GRAPH.links.length,
+      sentiment_breakdown: {positive:6,neutral:2,negative:2},
+      category_breakdown: {finance:2,technology:2,business:2,politics:1,geopolitics:1,science:1},
+    });
+    graphData = DEMO_GRAPH;
+    await fetchArticleScope();
+    renderFeed(getFeedBaseArticles());
+    await loadWorldImpactAndMap();
+    updateAskScopeHint();
+  }
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Stats
+// ────────────────────────────────────────────────────────────────────────────
+function updateStats(s) {
+  animateNum('s-articles', s.total_articles || 0);
+  animateNum('s-edges',    s.total_edges    || 0);
+  animateNum('s-pos',      s.sentiment_breakdown?.positive || 0);
+  animateNum('s-neg',      s.sentiment_breakdown?.negative || 0);
+  animateNum('s-nodes',    s.total_nodes || 0);
+}
+
+function updateActiveRegions(value) {
+  animateNum('s-nodes', Number(value || 0));
+}
+
+function getVisibleFeedArticles(baseArticles) {
+  let filtered = [...(baseArticles || [])];
+  if (currentFilter === 'positive') filtered = filtered.filter(a => a.sentiment === 'positive');
+  if (currentFilter === 'negative') filtered = filtered.filter(a => a.sentiment === 'negative');
+  if (currentFilter === 'high')     filtered = filtered.filter(a => a.impact_score >= 0.75);
+  if (currentSearchQuery) {
+    const lo = normSearchText(currentSearchQuery);
+    filtered = filtered.filter(a =>
+      normSearchText(a.title || '').includes(lo) ||
+      normSearchText(a.summary || '').includes(lo) ||
+      normSearchText(a.source || '').includes(lo) ||
+      normSearchText(a.category || '').includes(lo) ||
+      (a.entities || []).some((e) => normSearchText(String(e.name || e || '')).includes(lo))
+    );
+  }
+  return filtered;
+}
+
+function normText(v) {
+  return String(v || '').trim().toLowerCase();
+}
+
+function normTextLoose(v) {
+  return String(v || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function normSearchText(v) {
+  return String(v || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function countryCues(country) {
+  const iso = normCat(country && country.iso2);
+  const name = normTextLoose(country && country.name);
+  const cues = new Set();
+  if (name) cues.add(name);
+  if (iso) cues.add(iso);
+  if (iso === 'us') {
+    ['united states', 'united states of america', 'u.s.', 'u.s', 'usa', 'america', 'american']
+      .forEach((s) => cues.add(normTextLoose(s)));
+  } else if (iso === 'gb') {
+    ['united kingdom', 'uk', 'britain', 'great britain', 'british']
+      .forEach((s) => cues.add(normTextLoose(s)));
+  } else if (iso === 'in') {
+    ['india', 'indian', 'bharat']
+      .forEach((s) => cues.add(normTextLoose(s)));
+  }
+  return Array.from(cues).filter(Boolean);
+}
+
+function getRegionCountryData(regionIso2 = null) {
+  if (!regionIso2) return null;
+  const countries = (lastWorldData && lastWorldData.countries) || [];
+  return countries.find((c) => normCat(c.iso2) === normCat(regionIso2)) || null;
+}
+
+function getRegionScopedArticlesFromBase(base, regionIso2 = null) {
+  if (!regionIso2) return base;
+  const hit = getRegionCountryData(regionIso2);
+  if (!hit) return [];
+  const heads = (hit.headlines || []).map((h) => normTextLoose(h)).filter(Boolean);
+  const cues = countryCues(hit);
+  const isoCue = normText(String(hit.iso2 || regionIso2));
+  if (!heads.length && !cues.length && !isoCue) return [];
+  return base.filter((a) => {
+    const title = normTextLoose(a.title);
+    const summary = normTextLoose(a.summary);
+    const ents = normTextLoose((a.entities || []).map((e) => e && e.name ? e.name : String(e || '')).join(' '));
+    const blob = `${title} ${summary} ${ents}`;
+    if (!blob.trim()) return false;
+    const headlineHit = heads.some((h) => h && (blob.includes(h) || h.includes(title)));
+    const nameHit = cues.some((c) => blob.includes(c));
+    const isoHit = !!isoCue && new RegExp(`\\b${isoCue}\\b`, 'i').test(
+      `${a.title || ''} ${a.summary || ''} ${(a.entities || []).map((e) => e && e.name ? e.name : String(e || '')).join(' ')}`
+    );
+    return headlineHit || nameHit || isoHit;
+  });
+}
+
+async function loadRegionScopedArticles(regionIso2, expectedCount = null) {
+  const fallback = getRegionScopedArticlesFromBase(allArticles, regionIso2);
+  if (!backendLive || !regionIso2) return fallback;
+  const params = { limit: ARTICLE_FETCH_LIMIT, today: 1, country: regionIso2 };
+  if (currentCategory) params.category = currentCategory;
+  const byCountry = await fetchArticlesWithParams(params);
+  if (byCountry.length) {
+    // Backend may ignore unknown params; always validate region relevance.
+    const scopedCountry = getRegionScopedArticlesFromBase(byCountry, regionIso2);
+    if (scopedCountry.length) {
+      if (expectedCount && expectedCount > 0) return scopedCountry.slice(0, expectedCount);
+      return scopedCountry;
+    }
+  }
+  const byRegion = await fetchArticlesWithParams({ ...params, region: regionIso2 });
+  if (byRegion.length) {
+    const scopedRegion = getRegionScopedArticlesFromBase(byRegion, regionIso2);
+    if (scopedRegion.length) {
+      if (expectedCount && expectedCount > 0) return scopedRegion.slice(0, expectedCount);
+      return scopedRegion;
+    }
+  }
+  // Backend may ignore unsupported country/region params; derive region scope from full today slice.
+  const allToday = await fetchArticlesWithParams({
+    limit: 5000,
+    today: 1,
+    ...(currentCategory ? { category: currentCategory } : {}),
+  });
+  if (allToday.length) {
+    const byDerivedScope = getRegionScopedArticlesFromBase(allToday, regionIso2);
+    if (byDerivedScope.length) {
+      if (expectedCount && expectedCount > 0) return byDerivedScope.slice(0, expectedCount);
+      return byDerivedScope;
+    }
+  }
+  if (expectedCount && expectedCount > 0) return fallback.slice(0, expectedCount);
+  return fallback;
+}
+
+async function syncRegionScopeCache() {
+  if (!selectedRegionIso2) {
+    regionScopedArticlesCache = null;
+    return;
+  }
+  const seq = ++regionScopeLoadSeq;
+  regionScopedArticlesCache = await loadRegionScopedArticles(selectedRegionIso2);
+  if (seq !== regionScopeLoadSeq) return;
+}
+
+function refreshScopedMetrics(regionIso2 = selectedRegionIso2) {
+  const scopedArticles = getVisibleFeedArticles(getFeedBaseArticles());
+  const sentiment = { positive: 0, negative: 0, neutral: 0 };
+  scopedArticles.forEach((a) => {
+    const k = normText(a.sentiment);
+    if (k === 'positive') sentiment.positive += 1;
+    else if (k === 'negative') sentiment.negative += 1;
+    else sentiment.neutral += 1;
+  });
+  const fg = filterGraphData(graphData, scopedArticles, currentCategory, currentEntity);
+  const countries = (lastWorldData && lastWorldData.countries) || [];
+  const totalRegions = regionIso2
+    ? countries.some((c) => normCat(c.iso2) === normCat(regionIso2)) ? 1 : 0
+    : countries.length;
+  updateActiveRegions(totalRegions);
+  updateStats({
+    total_articles: scopedArticles.length,
+    total_nodes: totalRegions,
+    total_edges: (fg.links || []).length,
+    sentiment_breakdown: sentiment,
+  });
+}
+
+function animateNum(id, target) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const nTarget = Math.round(Number(target || 0));
+  if (pipelineIsRunning && pipelineMetricsFrozenDuringFetch) {
+    return;
+  }
+  const currentVal = Number(String(el.textContent || '0').replace(/[^\d.-]/g, ''));
+  let current = Number.isFinite(currentVal) ? currentVal : 0;
+  if (!animateMetricsOnNextStableUpdate) {
+    el.textContent = nTarget;
+    return;
+  }
+  const delta = nTarget - current;
+  if (Math.abs(delta) < 1) {
+    el.textContent = nTarget;
+    return;
+  }
+  const step = delta / 24;
+  const t = setInterval(() => {
+    current += step;
+    const done = (step >= 0 && current >= nTarget) || (step < 0 && current <= nTarget);
+    if (done) current = nTarget;
+    el.textContent = Math.round(current);
+    if (done) {
+      clearInterval(t);
+      animateMetricsOnNextStableUpdate = false;
+    }
+  }, 30);
+}
+
+function escAttr(s) {
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;');
+}
+function articleHref(url) {
+  if (!url || !/^https?:\/\//i.test(String(url))) return '';
+  return escAttr(url);
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Article Feed
+// ────────────────────────────────────────────────────────────────────────────
+function renderFeed(articles) {
+  let filtered = getVisibleFeedArticles(articles);
+  const toSortTime = (a) => {
+    const t1 = Date.parse(String((a && a.fetched_at) || ''));
+    if (Number.isFinite(t1) && t1 > 0) return t1;
+    const t2 = Date.parse(String((a && a.published_at) || ''));
+    if (Number.isFinite(t2) && t2 > 0) return t2;
+    return 0;
+  };
+  filtered = [...filtered].sort((a, b) => toSortTime(b) - toSortTime(a));
+
+  const list = document.getElementById('article-list');
+  const box = document.getElementById('smart-brief');
+  const panel = document.getElementById('feed-panel');
+  if (box && panel && box.parentElement !== panel) {
+    box.classList.remove('open', 'inline');
+    box.classList.add('hidden');
+    panel.insertBefore(box, list);
+  }
+  if (!articles.length) {
+    list.innerHTML = '<div style="padding:2rem;text-align:center;color:var(--ink-3);font-size:13px">No articles found.<br>Run the pipeline to fetch news.</div>';
+    return;
+  }
+  if (!filtered.length) {
+    list.innerHTML = `<div style="padding:2rem;text-align:center;color:var(--ink-3);font-size:13px">No ${currentFilter === 'all' ? '' : currentFilter + ' '}articles in this scope.<br>Try another feed filter or category.</div>`;
+    return;
+  }
+  list.innerHTML = filtered.map(a => articleCard(a)).join('');
+}
+
+function articleCard(a) {
+  const sentClass = `sent-${a.sentiment}`;
+  const catClass  = `cat-${a.category}`;
+  const impactPct = Math.round((a.impact_score || 0.5) * 100);
+  const impactColor = impactPct > 75 ? 'var(--neg)' : impactPct > 50 ? 'var(--accent)' : 'var(--ink-3)';
+  const entities  = (a.entities || []).slice(0,3).map(e =>
+    `<span class="ent-chip">${e.name || e}</span>`
+  ).join('');
+  const timeStr   = a.published_at
+    ? new Date(a.published_at).toLocaleTimeString('en-GB', {hour:'2-digit',minute:'2-digit'})
+    : '';
+
+  const href = articleHref(a.url);
+  const openLink = href
+    ? `<a class="art-link" href="${href}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()">Read source</a>`
+    : '';
+
+  return `
+  <div class="article-card" onclick="selectArticle('${escAttr(a.id)}', this)">
+    <div class="art-top">
+      <span class="art-cat ${catClass}">${a.category}</span>
+      <span class="art-source">${a.source}</span>
+      <div class="art-impact" title="Impact: ${impactPct}%">
+        <div class="art-impact-fill" style="width:${impactPct}%;background:${impactColor}"></div>
+      </div>
+    </div>
+    <div class="art-title">${a.title}</div>
+    <div class="art-summary">${a.summary || ''}</div>
+    <div class="art-entities">${entities}</div>
+    <div class="art-footer">
+      ${openLink}
+      <span class="sentiment-badge ${sentClass}">${a.sentiment}</span>
+      <span class="art-time">${timeStr}</span>
+    </div>
+  </div>`;
+}
+
+function selectArticle(id, el) {
+  const box = document.getElementById('smart-brief');
+  const isSameOpen =
+    box &&
+    !box.classList.contains('hidden') &&
+    currentBriefArticleId &&
+    String(currentBriefArticleId) === String(id);
+  if (isSameOpen) {
+    el.classList.remove('selected');
+    closeSmartBrief();
+    return;
+  }
+  document.querySelectorAll('.article-card').forEach(c => c.classList.remove('selected'));
+  el.classList.add('selected');
+  // Highlight node in graph
+  highlightNode('art:' + id);
+  openSmartBriefByArticleId(id, el);
+}
+
+function setFeedFilter(f, el) {
+  currentFilter = f;
+  document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active', 'f-all', 'f-positive', 'f-negative', 'f-high'));
+  el.classList.add('active');
+  el.classList.add(`f-${f}`);
+  renderFeed(getFeedBaseArticles());
+  refreshScopedMetrics();
+  if (currentView === 'entities') loadEntities();
+}
+
+function setEntitiesStoryFilter(f, el) {
+  currentFilter = f;
+  document.querySelectorAll('#entities-filter-chips .filter-chip').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  const mainChip = getFeedChipEl(f);
+  if (mainChip) {
+    document.querySelectorAll('#filter-chips .filter-chip').forEach(c => c.classList.remove('active', 'f-all', 'f-positive', 'f-negative', 'f-high'));
+    mainChip.classList.add('active');
+    mainChip.classList.add(`f-${f}`);
+  }
+  renderFeed(getFeedBaseArticles());
+  refreshScopedMetrics();
+  loadEntities();
+}
+
+function getFeedChipEl(filterName) {
+  const chips = Array.from(document.querySelectorAll('.filter-chip'));
+  return chips.find((chip) => chip.getAttribute('onclick')?.includes(`'${filterName}'`)) || null;
+}
+
+function goToFeedFilter(filterName) {
+  if (currentView !== 'dashboard') switchView('dashboard');
+  const chip = getFeedChipEl(filterName);
+  if (chip) {
+    setFeedFilter(filterName, chip);
+  } else {
+    currentFilter = filterName;
+    renderFeed(getFeedBaseArticles());
+    refreshScopedMetrics();
+  }
+}
+
+function resetFeedFilterToAll() {
+  const chip = getFeedChipEl('all');
+  if (chip) setFeedFilter('all', chip);
+  else {
+    currentFilter = 'all';
+    renderFeed(getFeedBaseArticles());
+    refreshScopedMetrics();
+  }
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// D3 Force Graph
+// ────────────────────────────────────────────────────────────────────────────
+const NODE_COLORS = {
+  article: { finance:'#2a85c4', technology:'#8e44ad', business:'#27ae60',
+              politics:'#d68910', geopolitics:'#2471a3', science:'#1abc9c', _default:'#2a85c4' },
+  entity:  '#c8622a',
+  theme:   '#4a9060',
+};
+
+function getNodeColor(d) {
+  if (d.type === 'entity') return NODE_COLORS.entity;
+  if (d.type === 'theme')  return NODE_COLORS.theme;
+  return NODE_COLORS.article[d.category] || NODE_COLORS.article._default;
+}
+function getNodeRadius(d) {
+  if (d.type === 'article') return 8;
+  if (d.type === 'entity')  return 6;
+  return 5;
+}
+function currentEntityNodeId() {
+  if (!currentEntity) return null;
+  return `ent:${canonicalEntityKey(currentEntity).replace(/\s+/g, '_')}`;
+}
+function isCurrentEntityNode(d) {
+  const id = currentEntityNodeId();
+  return !!id && String(d.id) === id;
+}
+
+function clearGraphNeighborhoodFocus(svgId) {
+  const svgEl = document.getElementById(svgId);
+  if (!svgEl) return;
+  const host = d3.select(svgEl);
+  const nodeGroups = host.selectAll('g.node');
+  const circles = nodeGroups.selectAll('circle').filter(function () {
+    return !this.classList.contains('entity-focus-halo');
+  });
+  const texts = nodeGroups.selectAll('text');
+  const links = host.selectAll('line.graph-link');
+  circles.attr('opacity', 1).attr('r', d => getNodeRadius(d));
+  texts.attr('opacity', 1);
+  links.attr('opacity', 1).attr('stroke-width', d => d.relation === 'CAUSAL' ? 1.5 : 0.8);
+}
+
+function getGraphNeighborhood(host, centerNodeId, maxDepth = 2) {
+  const links = host.selectAll('line.graph-link');
+  const adjacency = new Map();
+  const addEdge = (a, b) => {
+    if (!adjacency.has(a)) adjacency.set(a, []);
+    adjacency.get(a).push(b);
+  };
+  links.each((l) => {
+    const sid = String(linkEndpointId(l.source));
+    const tid = String(linkEndpointId(l.target));
+    if (!sid || !tid) return;
+    addEdge(sid, tid);
+    addEdge(tid, sid);
+  });
+
+  const center = String(centerNodeId || '');
+  const connectedIds = new Set([center]);
+  const q = [{ id: center, depth: 0 }];
+  while (q.length) {
+    const cur = q.shift();
+    if (!cur || cur.depth >= maxDepth) continue;
+    const nbrs = adjacency.get(cur.id) || [];
+    nbrs.forEach((n) => {
+      if (connectedIds.has(n)) return;
+      connectedIds.add(n);
+      q.push({ id: n, depth: cur.depth + 1 });
+    });
+  }
+  return connectedIds;
+}
+
+function resolveGraphFocusNodeId(svgId, requestedNodeId) {
+  const svgEl = document.getElementById(svgId);
+  if (!svgEl || !requestedNodeId) return null;
+  const host = d3.select(svgEl);
+  const req = String(requestedNodeId || '').trim();
+  if (!req) return null;
+
+  const ids = [];
+  host.selectAll('g.node').each((d) => {
+    ids.push(String((d && d.id) || ''));
+  });
+  const idSet = new Set(ids);
+  if (idSet.has(req)) return req;
+
+  // Article ids can be "art:<id>" or plain "<id>".
+  const plain = req.replace(/^art:/, '');
+  const art = `art:${plain}`;
+  if (idSet.has(plain)) return plain;
+  if (idSet.has(art)) return art;
+
+  // Entity ids often use normalized slug. Try label-based fallback.
+  if (req.startsWith('ent:')) {
+    const reqKey = canonicalEntityKey(req.replace(/^ent:/, '').replace(/_/g, ' '));
+    let match = null;
+    host.selectAll('g.node').each((d) => {
+      if (match || !d) return;
+      const nodeId = String(d.id || '');
+      if (!nodeId.startsWith('ent:')) return;
+      const labelKey = canonicalEntityKey(String(d.label || '').trim());
+      const idKey = canonicalEntityKey(nodeId.replace(/^ent:/, '').replace(/_/g, ' '));
+      if (reqKey && (reqKey === labelKey || reqKey === idKey)) {
+        match = nodeId;
+      }
+    });
+    if (match) return match;
+  }
+  return null;
+}
+
+function getGraphDepthMap(host, centerNodeId, maxDepth = 2) {
+  const links = host.selectAll('line.graph-link');
+  const adjacency = new Map();
+  const addEdge = (a, b) => {
+    if (!adjacency.has(a)) adjacency.set(a, []);
+    adjacency.get(a).push(b);
+  };
+  links.each((l) => {
+    const sid = String(linkEndpointId(l.source));
+    const tid = String(linkEndpointId(l.target));
+    if (!sid || !tid) return;
+    addEdge(sid, tid);
+    addEdge(tid, sid);
+  });
+
+  const center = String(centerNodeId || '');
+  const depthById = new Map([[center, 0]]);
+  const q = [center];
+  while (q.length) {
+    const cur = q.shift();
+    const d = Number(depthById.get(cur) || 0);
+    if (d >= maxDepth) continue;
+    const nbrs = adjacency.get(cur) || [];
+    nbrs.forEach((n) => {
+      if (depthById.has(n)) return;
+      depthById.set(n, d + 1);
+      q.push(n);
+    });
+  }
+  return depthById;
+}
+
+function applyGraphNeighborhoodFocus(svgId, centerNodeId, maxDepth = 2) {
+  const svgEl = document.getElementById(svgId);
+  if (!svgEl || !centerNodeId) return;
+  const host = d3.select(svgEl);
+  const nodeGroups = host.selectAll('g.node');
+  const circles = nodeGroups.selectAll('circle').filter(function () {
+    return !this.classList.contains('entity-focus-halo');
+  });
+  const texts = nodeGroups.selectAll('text');
+  const links = host.selectAll('line.graph-link');
+  const connectedIds = getGraphNeighborhood(host, centerNodeId, maxDepth);
+
+  circles
+    .attr('opacity', (d) => {
+      const id = String(d.id || '');
+      if (id === String(centerNodeId)) return 1;
+      if (connectedIds.has(id)) return 0.92;
+      return 0.14;
+    })
+    .attr('r', (d) => {
+      const id = String(d.id || '');
+      if (id === String(centerNodeId)) return getNodeRadius(d) * 2;
+      if (connectedIds.has(id)) return getNodeRadius(d) * 1.35;
+      return getNodeRadius(d);
+    });
+
+  texts.attr('opacity', (d) => {
+    const id = String(d.id || '');
+    if (id === String(centerNodeId)) return 1;
+    if (connectedIds.has(id)) return 0.85;
+    return 0.18;
+  });
+
+  links
+    .attr('opacity', (l) => {
+      const sid = String(linkEndpointId(l.source));
+      const tid = String(linkEndpointId(l.target));
+      if (sid === String(centerNodeId) || tid === String(centerNodeId)) return 0.98;
+      if (connectedIds.has(sid) && connectedIds.has(tid)) return 0.45;
+      return 0.08;
+    })
+    .attr('stroke-width', (l) => {
+      const sid = String(linkEndpointId(l.source));
+      const tid = String(linkEndpointId(l.target));
+      if (sid === String(centerNodeId) || tid === String(centerNodeId)) return 2.3;
+      return l.relation === 'CAUSAL' ? 1.5 : 0.8;
+    });
+}
+
+function animateConnectedNeighborhood(svgId, centerNodeId, maxDepth = 2) {
+  const svgEl = document.getElementById(svgId);
+  if (!svgEl || !centerNodeId) return;
+  const host = d3.select(svgEl);
+  const nodeGroups = host.selectAll('g.node');
+  const links = host.selectAll('line.graph-link');
+  const connected = getGraphNeighborhood(host, centerNodeId, maxDepth);
+
+  const activeCircles = nodeGroups
+    .filter((d) => connected.has(String(d.id || '')))
+    .select('circle')
+    .filter(function () { return !this.classList.contains('entity-focus-halo'); });
+
+  const activeLinks = links.filter((l) => {
+    const sid = String(linkEndpointId(l.source));
+    const tid = String(linkEndpointId(l.target));
+    return connected.has(sid) && connected.has(tid);
+  });
+
+  activeCircles
+    .interrupt()
+    .transition()
+    .duration(180)
+    .attr('r', (d) => getNodeRadius(d) * 1.95)
+    .transition()
+    .duration(220)
+    .attr('r', (d) => getNodeRadius(d) * 1.25)
+    .transition()
+    .duration(220)
+    .attr('r', (d) => {
+      const id = String(d.id || '');
+      if (id === String(centerNodeId)) return getNodeRadius(d) * 2;
+      return getNodeRadius(d) * 1.35;
+    });
+
+  activeLinks
+    .interrupt()
+    .transition()
+    .duration(200)
+    .attr('opacity', 1)
+    .attr('stroke-width', (l) => {
+      const sid = String(linkEndpointId(l.source));
+      const tid = String(linkEndpointId(l.target));
+      if (sid === String(centerNodeId) || tid === String(centerNodeId)) return 2.9;
+      return 2.1;
+    })
+    .transition()
+    .duration(260)
+    .attr('opacity', (l) => {
+      const sid = String(linkEndpointId(l.source));
+      const tid = String(linkEndpointId(l.target));
+      if (sid === String(centerNodeId) || tid === String(centerNodeId)) return 0.98;
+      return 0.6;
+    })
+    .attr('stroke-width', (l) => {
+      const sid = String(linkEndpointId(l.source));
+      const tid = String(linkEndpointId(l.target));
+      if (sid === String(centerNodeId) || tid === String(centerNodeId)) return 2.3;
+      return 1.35;
+    });
+}
+
+function animateEdgesConnecting(svgId, centerNodeId, maxDepth = 2) {
+  const svgEl = document.getElementById(svgId);
+  if (!svgEl || !centerNodeId) return;
+  const host = d3.select(svgEl);
+  const connected = getGraphNeighborhood(host, centerNodeId, maxDepth);
+  const depthById = getGraphDepthMap(host, centerNodeId, maxDepth);
+  const activeLinks = host.selectAll('line.graph-link').filter((l) => {
+    const sid = String(linkEndpointId(l.source));
+    const tid = String(linkEndpointId(l.target));
+    return connected.has(sid) && connected.has(tid);
+  });
+
+  activeLinks
+    .interrupt()
+    .each(function (l) {
+      const line = d3.select(this);
+      const sid = String(linkEndpointId(l.source));
+      const tid = String(linkEndpointId(l.target));
+      const sd = Number(depthById.get(sid) ?? 3);
+      const td = Number(depthById.get(tid) ?? 3);
+      const layer = Math.min(sd, td);
+      const len = Math.max(
+        8,
+        Math.hypot(
+          Number((l.target && l.target.x) || 0) - Number((l.source && l.source.x) || 0),
+          Number((l.target && l.target.y) || 0) - Number((l.source && l.source.y) || 0)
+        )
+      );
+      // Positive offset draws one way, negative draws the opposite way.
+      // Use graph depth so edges animate outward from the selected node.
+      const outwardOffset = sd <= td ? len : -len;
+      line
+        .attr('opacity', 1)
+        .attr('stroke-dasharray', `${len} ${len}`)
+        .attr('stroke-dashoffset', outwardOffset)
+        .transition()
+        .delay(layer * 120)
+        .duration(420)
+        .ease(d3.easeCubicOut)
+        .attr('stroke-dashoffset', 0)
+        .on('end', function () {
+          const keepDashed = l.relation === 'CO_OCCURS';
+          d3.select(this)
+            .attr('stroke-dasharray', keepDashed ? '3,3' : null)
+            .attr('stroke-dashoffset', 0);
+        });
+    });
+}
+
+function animateGraphNodeThen(svgId, nodeId, done) {
+  const svgEl = document.getElementById(svgId);
+  if (!svgEl) {
+    if (typeof done === 'function') done();
+    return;
+  }
+  const host = d3.select(svgEl);
+  const circle = host
+    .selectAll('g.node')
+    .filter((d) => String(d.id || '') === String(nodeId))
+    .select('circle')
+    .filter(function () { return !this.classList.contains('entity-focus-halo'); });
+  if (circle.empty()) {
+    if (typeof done === 'function') done();
+    return;
+  }
+  circle
+    .interrupt()
+    .transition()
+    .duration(170)
+    .attr('r', (d) => getNodeRadius(d) * 2.2)
+    .transition()
+    .duration(180)
+    .attr('r', (d) => getNodeRadius(d) * 1.15)
+    .transition()
+    .duration(170)
+    .attr('r', (d) => getNodeRadius(d) * 1.9)
+    .transition()
+    .duration(190)
+    .attr('r', (d) => getNodeRadius(d) * 1.35)
+    .on('end', () => {
+      if (typeof done === 'function') done();
+    });
+}
+
+function zoomToNeighborhood(svgId, centerNodeId, maxDepth = 1) {
+  const svgEl = document.getElementById(svgId);
+  if (!svgEl) return;
+  const host = d3.select(svgEl);
+  const connected = getGraphNeighborhood(host, centerNodeId, maxDepth);
+  const nodes = [];
+  host.selectAll('g.node').each((d) => {
+    if (connected.has(String(d.id || '')) && Number.isFinite(d.x) && Number.isFinite(d.y)) {
+      nodes.push(d);
+    }
+  });
+  if (!nodes.length) return;
+  const minX = d3.min(nodes, (d) => d.x);
+  const maxX = d3.max(nodes, (d) => d.x);
+  const minY = d3.min(nodes, (d) => d.y);
+  const maxY = d3.max(nodes, (d) => d.y);
+  if (![minX, maxX, minY, maxY].every((v) => Number.isFinite(v))) return;
+
+  const parent = svgEl.parentElement;
+  const W = parent.clientWidth || 800;
+  const H = parent.clientHeight || 500;
+  const pad = 80;
+  const bw = Math.max(20, (maxX - minX) + pad);
+  const bh = Math.max(20, (maxY - minY) + pad);
+  const scale = Math.max(0.35, Math.min(2.4, Math.min(W / bw, H / bh)));
+  const cx = (minX + maxX) / 2;
+  const cy = (minY + maxY) / 2;
+  const tx = (W / 2) - (scale * cx);
+  const ty = (H / 2) - (scale * cy);
+  const z = d3.zoomIdentity.translate(tx, ty).scale(scale);
+  if (svgId === 'graph-canvas-full' && svgFull && zoomFull) {
+    svgFull.transition().duration(380).call(zoomFull.transform, z);
+  } else if (svg && zoomBehavior) {
+    svg.transition().duration(380).call(zoomBehavior.transform, z);
+  }
+}
+
+function buildGraph(svgId, data, isFull) {
+  const svgEl = document.getElementById(svgId);
+  if (!svgEl) return;
+  const parent = svgEl.parentElement;
+  const W = parent.clientWidth  || 800;
+  const H = parent.clientHeight || 500;
+
+  const s = d3.select(svgEl)
+    .attr('viewBox', `0 0 ${W} ${H}`)
+    .style('cursor', 'grab');
+
+  s.selectAll('*').remove();
+
+  const g = s.append('g');
+
+  const zoom = d3.zoom()
+    .scaleExtent([0.2, 4])
+    .on('zoom', e => g.attr('transform', e.transform));
+  s.call(zoom);
+  s.on('click.clearFocus', (event) => {
+    if (event.target === svgEl) {
+      graphNeighborhoodFocusBySvg[svgId] = null;
+      clearGraphNeighborhoodFocus(svgId);
+    }
+  });
+
+  if (isFull) { svgFull = s; gMainFull = g; zoomFull = zoom; }
+  else        { svg = s;     gMain = g;    zoomBehavior = zoom; }
+
+  // Clone to avoid mutation
+  const nodes = data.nodes.map(d => ({...d}));
+  const links = data.links.map(d => ({...d}));
+
+  const sim = d3.forceSimulation(nodes)
+    .force('link', d3.forceLink(links).id(d => d.id).distance(d => d.relation === 'CO_OCCURS' ? 90 : 60))
+    .force('charge', d3.forceManyBody().strength(-120))
+    .force('center', d3.forceCenter(W / 2, H / 2))
+    .force('collision', d3.forceCollide(14));
+
+  if (isFull) simFull = sim; else simulation = sim;
+
+  // Links
+  const link = g.append('g').attr('stroke-opacity', 0.35)
+    .selectAll('line').data(links).join('line')
+    .attr('class', 'graph-link')
+    .attr('stroke', d => d.relation === 'CAUSAL' ? '#c8622a' : '#aaa')
+    .attr('stroke-width', d => d.relation === 'CAUSAL' ? 1.5 : 0.8)
+    .attr('stroke-dasharray', d => d.relation === 'CO_OCCURS' ? '3,3' : null);
+
+  // Node groups
+  const node = g.append('g')
+    .selectAll('g').data(nodes).join('g')
+    .attr('class', 'node')
+    .attr('cursor', 'pointer')
+    .call(d3.drag()
+      .on('start', (e, d) => { if (!e.active) sim.alphaTarget(0.3).restart(); d.fx=d.x; d.fy=d.y; })
+      .on('drag',  (e, d) => { d.fx = e.x; d.fy = e.y; })
+      .on('end',   (e, d) => { if (!e.active) sim.alphaTarget(0); d.fx=null; d.fy=null; })
+    )
+    .on('click', (e, d) => { e.stopPropagation(); onNodeClick(d, svgId); });
+
+  node.append('circle')
+    .attr('r', d => getNodeRadius(d))
+    .attr('fill', d => getNodeColor(d))
+    .attr('stroke', d => isCurrentEntityNode(d) ? '#c8622a' : '#fff')
+    .attr('stroke-width', d => isCurrentEntityNode(d) ? 3 : 1.5)
+    .on('mouseover', function(e, d) {
+      d3.select(this).attr('r', getNodeRadius(d) * 1.5);
+      showTooltip(e, d);
+    })
+    .on('mouseout', function(e, d) {
+      d3.select(this).attr('r', getNodeRadius(d));
+      hideTooltip();
+    });
+
+  // Persistent bubble effect for selected entity in graph view.
+  const focusedNodes = node.filter((d) => isCurrentEntityNode(d));
+  focusedNodes.insert('circle', ':first-child')
+    .attr('class', 'entity-focus-halo')
+    .attr('r', d => getNodeRadius(d) * 2.4)
+    .attr('fill', 'none')
+    .attr('stroke', '#c8622a')
+    .attr('stroke-width', 2)
+    .attr('stroke-opacity', 0.55)
+    .attr('pointer-events', 'none');
+
+  function pulseEntityHalo() {
+    focusedNodes.selectAll('circle.entity-focus-halo')
+      .transition()
+      .duration(1100)
+      .ease(d3.easeSinInOut)
+      .attr('r', d => getNodeRadius(d) * 3.1)
+      .attr('stroke-opacity', 0.15)
+      .transition()
+      .duration(1200)
+      .ease(d3.easeSinInOut)
+      .attr('r', d => getNodeRadius(d) * 2.4)
+      .attr('stroke-opacity', 0.55)
+      .on('end', pulseEntityHalo);
+  }
+  if (!focusedNodes.empty()) pulseEntityHalo();
+
+  node.append('text')
+    .text(d => d.label ? d.label.slice(0, 20) : '')
+    .attr('font-size', 9)
+    .attr('dx', d => getNodeRadius(d) + 3)
+    .attr('dy', '0.35em')
+    .attr('fill', 'var(--ink-2)')
+    .style('pointer-events', 'none')
+    .style('display', d => d.type === 'article' ? 'none' : 'block');
+
+  sim.on('tick', () => {
+    link
+      .attr('x1', d => d.source.x).attr('y1', d => d.source.y)
+      .attr('x2', d => d.target.x).attr('y2', d => d.target.y);
+    node.attr('transform', d => `translate(${d.x},${d.y})`);
+  });
+
+  // In graph view, keep selected-entity context visually obvious.
+  if (isFull && currentEntityNodeId()) {
+    setTimeout(() => highlightNode(currentEntityNodeId()), 120);
+  }
+  const focusedId = graphNeighborhoodFocusBySvg[svgId];
+  if (focusedId && nodes.some((n) => String(n.id) === String(focusedId))) {
+    setTimeout(() => applyGraphNeighborhoodFocus(svgId, focusedId), 120);
+  } else {
+    graphNeighborhoodFocusBySvg[svgId] = null;
+  }
+}
+
+// Simple tooltip (DOM-based)
+let ttEl;
+function showTooltip(e, d) {
+  if (!ttEl) {
+    ttEl = document.createElement('div');
+    ttEl.style.cssText = `position:fixed;background:var(--ink);color:var(--paper);
+      padding:6px 10px;border-radius:6px;font-size:11px;pointer-events:none;z-index:999;
+      font-family:'DM Sans',sans-serif;max-width:200px;line-height:1.4`;
+    document.body.appendChild(ttEl);
+  }
+  const typeLabel = d && d.type === 'entity' ? 'topic' : String((d && d.type) || '');
+  ttEl.innerHTML = `<strong>${d.label || d.id}</strong>${d.type ? `<br><span style="opacity:0.6">${typeLabel}${d.category?' · '+d.category:''}</span>` : ''}`;
+  ttEl.style.left = (e.pageX + 12) + 'px';
+  ttEl.style.top  = (e.pageY - 20) + 'px';
+  ttEl.style.display = 'block';
+}
+function hideTooltip() { if (ttEl) ttEl.style.display = 'none'; }
+
+function onNodeClick(d, svgId) {
+  if (d.type === 'theme' || d.type === 'entity') {
+    const id = String(d.id || '');
+    const wasFocused = String(graphNeighborhoodFocusBySvg[svgId] || '') === id;
+    if (wasFocused) {
+      graphNeighborhoodFocusBySvg[svgId] = null;
+      clearGraphNeighborhoodFocus(svgId);
+    } else {
+      graphNeighborhoodFocusBySvg[svgId] = id;
+      applyGraphNeighborhoodFocus(svgId, id);
+      animateConnectedNeighborhood(svgId, id);
+      animateEdgesConnecting(svgId, id);
+    }
+    return;
+  }
+  graphNeighborhoodFocusBySvg[svgId] = null;
+  clearGraphNeighborhoodFocus(svgId);
+  if (d.type === 'article') {
+    const id = String(d.id || '');
+    graphNeighborhoodFocusBySvg[svgId] = id;
+    applyGraphNeighborhoodFocus(svgId, id);
+    // Open dashboard and show Smart Brief in-view (not inline below card).
+    animateGraphNodeThen(svgId, id, () => {
+      const artId = id.replace('art:', '');
+      if (currentView !== 'dashboard') switchView('dashboard');
+      // Ensure clicked graph article is visible even if feed filter was narrowed.
+      resetFeedFilterToAll();
+      const card = document.querySelector(`[onclick*="${artId}"]`);
+      document.querySelectorAll('.article-card').forEach(c => c.classList.remove('selected'));
+      if (card) card.classList.add('selected');
+      openSmartBriefByArticleId(artId, card || null);
+      if (card) {
+        card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+      const box = document.getElementById('smart-brief');
+      if (!card && box) box.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  }
+}
+
+function getArticleById(id) {
+  return (allArticles || []).find((a) => String(a.id) === String(id));
+}
+function impactBand(score) {
+  const s = Number(score || 0.5);
+  if (s >= 0.78) return 'high';
+  if (s >= 0.58) return 'medium';
+  return 'low';
+}
+function whyItMattersText(a) {
+  const band = impactBand(a.impact_score);
+  const cat = a.category || 'general';
+  const sent = a.sentiment || 'neutral';
+  return `<strong>Why it matters:</strong> This ${cat} story has ${band} impact and a ${sent} signal, likely shaping near-term narratives and related coverage.`;
+}
+function sentimentImpactText(a) {
+  const pct = Math.round((Number(a.impact_score || 0.5)) * 100);
+  return `Signal: ${String(a.sentiment || 'neutral')} · Impact: ${pct}%`;
+}
+function buildSmartBriefKeywordChips(a) {
+  const reserved = new Set([
+    String(a.source || '').trim().toLowerCase(),
+    String(a.category || '').trim().toLowerCase(),
+    String(a.sentiment || '').trim().toLowerCase(),
+    'unknown source',
+    'general',
+    'neutral',
+  ]);
+  const seen = new Set();
+  const out = [];
+  for (const raw of (a.themes || [])) {
+    const t = String(raw || '').trim();
+    if (!t) continue;
+    const k = t.toLowerCase();
+    if (k.length < 2) continue;
+    if (reserved.has(k)) continue;
+    if (seen.has(k)) continue;
+    seen.add(k);
+    const safe = escAttr(t);
+    out.push(`<span class="brief-chip" title="${safe}">${safe}</span>`);
+    if (out.length >= 4) break;
+  }
+  return out;
+}
+function openSmartBriefByArticleId(id, anchorEl) {
+  const a = getArticleById(id);
+  if (!a) return;
+  const box = document.getElementById('smart-brief');
+  const title = document.getElementById('brief-title');
+  const summary = document.getElementById('brief-summary');
+  const why = document.getElementById('brief-why');
+  const meta = document.getElementById('brief-meta');
+  const actions = document.getElementById('brief-actions');
+  if (!box || !title || !summary || !why || !meta || !actions) return;
+
+  title.textContent = 'Smart Brief';
+  summary.textContent = (a.summary && String(a.summary).trim()) || 'No summary available for this item.';
+  why.innerHTML = whyItMattersText(a);
+  const chips = [
+    `<span class="brief-chip" title="${escAttr(a.source || 'unknown source')}">${escAttr(a.source || 'unknown source')}</span>`,
+    `<span class="brief-chip" title="${escAttr(a.category || 'general')}">${escAttr(a.category || 'general')}</span>`,
+    `<span class="brief-chip" title="${escAttr(sentimentImpactText(a))}">${escAttr(sentimentImpactText(a))}</span>`,
+  ];
+  chips.push(...buildSmartBriefKeywordChips(a));
+  meta.innerHTML = chips.join('');
+
+  const entButtons = (a.entities || []).slice(0, 3).map((e0) => {
+    const n = (e0 && e0.name) ? e0.name : String(e0);
+    const safe = escAttr(n);
+    return `<button class="brief-btn" onclick="openEntityInGraph('${safe}')">${safe}</button>`;
+  });
+  const cat = escAttr(a.category || 'all');
+  const prompt = escAttr(`Give me a concise brief for: ${a.title || 'this news item'}`);
+  actions.innerHTML = [
+    `<button class="brief-btn" onclick="openArticleInGraph('${escAttr(a.id)}')">View relationships</button>`,
+    `<button class="brief-btn" onclick="filterByCategory('${cat}')">Focus category</button>`,
+    `<button class="brief-btn" onclick="switchView('ask'); document.getElementById('ask-input').value='${prompt}'; sendQuestion()">Ask AI about this</button>`,
+    ...entButtons,
+  ].join('');
+  box.classList.remove('open', 'hidden');
+  const targetCard = anchorEl || document.querySelector('.article-card.selected');
+  if (targetCard && targetCard.parentElement) {
+    box.classList.add('inline');
+    targetCard.insertAdjacentElement('afterend', box);
+    targetCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  } else {
+    box.classList.remove('inline');
+  }
+  requestAnimationFrame(() => box.classList.add('open'));
+  currentBriefArticleId = String(a.id);
+}
+function closeSmartBrief() {
+  const box = document.getElementById('smart-brief');
+  if (!box) return;
+  box.classList.remove('open');
+  setTimeout(() => box.classList.add('hidden'), 180);
+  currentBriefArticleId = null;
+}
+
+function openNodeInGraph(nodeId, opts = {}) {
+  const nid = String(nodeId || '').trim();
+  if (!nid) return;
+  pendingGraphFocus = {
+    nodeId: nid,
+    depth: Number(opts.depth || 2),
+    zoom: !!opts.zoom,
+  };
+  switchView('graph');
+}
+
+function openArticleInGraph(articleId) {
+  const aid = String(articleId || '').trim();
+  if (!aid) return;
+  openNodeInGraph(`art:${aid}`, { depth: 2, zoom: false });
+}
+
+function graphNodeIdEquals(d, nodeId) {
+  const a = String(d && d.id);
+  const b = String(nodeId);
+  return a === b || a === b.replace(/^art:/, '') || `art:${a}` === b;
+}
+
+function highlightNode(nodeId) {
+  const host = (currentView === 'graph' && svgFull) ? svgFull : svg;
+  if (!host) return;
+  host.selectAll('circle')
+    .attr('opacity', d => graphNodeIdEquals(d, nodeId) ? 1 : 0.35)
+    .attr('r', d => graphNodeIdEquals(d, nodeId) ? getNodeRadius(d) * 2 : getNodeRadius(d));
+  setTimeout(() => {
+    host.selectAll('circle')
+      .attr('opacity', 1)
+      .attr('r', d => getNodeRadius(d));
+  }, 2000);
+}
+
+function applyGraphFocusPayload(payload) {
+  if (!payload || !payload.nodeId) return true;
+  const requestedNodeId = String(payload.nodeId);
+  const nodeId = resolveGraphFocusNodeId('graph-canvas-full', requestedNodeId);
+  if (!nodeId) return false;
+  const depth = Number(payload.depth || 2);
+  graphNeighborhoodFocusBySvg['graph-canvas-full'] = nodeId;
+  applyGraphNeighborhoodFocus('graph-canvas-full', nodeId, depth);
+  animateConnectedNeighborhood('graph-canvas-full', nodeId, depth);
+  animateEdgesConnecting('graph-canvas-full', nodeId, depth);
+  animateGraphNodeThen('graph-canvas-full', nodeId);
+  if (payload.zoom) zoomToNeighborhood('graph-canvas-full', nodeId, depth);
+  return true;
+}
+
+// Zoom controls
+function zoomIn()    { if (svg) svg.transition().call(zoomBehavior.scaleBy, 1.4); }
+function zoomOut()   { if (svg) svg.transition().call(zoomBehavior.scaleBy, 0.7); }
+function resetZoom() { if (svg) svg.transition().call(zoomBehavior.transform, d3.zoomIdentity); }
+
+// ────────────────────────────────────────────────────────────────────────────
+// View switching
+// ────────────────────────────────────────────────────────────────────────────
+const VIEW_TITLES = {
+  dashboard: 'World View',
+  graph:     'World Graph',
+  entities:  'Topics',
+  ask:       'Ask AI',
+};
+
+function switchView(name) {
+  if ((name === 'dashboard' || name === 'graph') && !preserveEntityOnNextViewSwitch && currentEntity) {
+    currentEntity = null;
+    updateEntitiesFocusToolbar();
+  }
+  preserveEntityOnNextViewSwitch = false;
+  currentView = name;
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+
+  const v = document.getElementById(`${name}-view`);
+  if (v) v.classList.add('active');
+  document.getElementById('page-title').textContent = VIEW_TITLES[name] || name;
+
+  // Highlight nav
+  document.querySelectorAll('.nav-item').forEach(n => {
+    if (n.getAttribute('onclick')?.includes(`'${name}'`)) n.classList.add('active');
+  });
+
+  if (name === 'dashboard') {
+    renderFeed(getFeedBaseArticles());
+    loadWorldImpactAndMap();
+  }
+  // Lazy-build full graph (respects category filter)
+  if (name === 'graph' && graphData.nodes.length) {
+    const fg = filterGraphData(graphData, allArticles, currentCategory, currentEntity);
+    setTimeout(() => {
+      buildGraph('graph-canvas-full', fg, true);
+      if (currentSearchQuery) applyGraphSearch(currentSearchQuery);
+      if (pendingGraphFocus && pendingGraphFocus.nodeId) {
+        const p = { ...pendingGraphFocus };
+        // Try immediately, then retry after simulation settles.
+        const okNow = applyGraphFocusPayload(p);
+        if (!okNow) {
+          setTimeout(() => applyGraphFocusPayload(p), 220);
+          setTimeout(() => applyGraphFocusPayload(p), 600);
+        }
+        pendingGraphFocus = null;
+      }
+    }, 100);
+  }
+  if (name === 'entities') loadEntities();
+  if (name === 'entities') {
+    const chips = Array.from(document.querySelectorAll('#entities-filter-chips .filter-chip'));
+    chips.forEach((c) => c.classList.remove('active'));
+    const active = chips.find((c) => c.getAttribute('onclick')?.includes(`'${currentFilter}'`));
+    if (active) active.classList.add('active');
+  }
+  updateAskScopeHint();
+}
+
+async function filterByCategory(cat) {
+  currentCategory = (cat === 'all' || cat === '*') ? null : cat;
+  selectedRegionIso2 = null;
+  regionScopedArticlesCache = null;
+  regionScopeLoadSeq += 1;
+  currentEntity = null;
+  updateEntitiesFocusToolbar();
+  await fetchArticleScope();
+  applyCategoryToCurrentView();
+  showToast(currentCategory ? `Category: ${currentCategory}` : 'All categories');
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Topics
+// ────────────────────────────────────────────────────────────────────────────
+async function loadEntities() {
+  const base = getFeedBaseArticles();
+  let scoped = [...base];
+  if (currentFilter === 'positive') scoped = scoped.filter(a => a.sentiment === 'positive');
+  if (currentFilter === 'negative') scoped = scoped.filter(a => a.sentiment === 'negative');
+  if (currentFilter === 'high') scoped = scoped.filter(a => a.impact_score >= 0.75);
+
+  const byEntity = new Map();
+  scoped.forEach((a) => {
+    (a.entities || []).forEach((e0) => {
+      const e = typeof e0 === 'object' ? e0 : { name: String(e0), type: 'UNKNOWN' };
+      const key = canonicalEntityKey(e.name);
+      if (!key) return;
+      if (!byEntity.has(key)) {
+        byEntity.set(key, {
+          label: displayEntityName(e.name),
+          entity_type: e.type || 'UNKNOWN',
+          degree: 0,
+          impact_sum: 0,
+          pos: 0,
+          neg: 0,
+          neu: 0,
+        });
+      }
+      const d = byEntity.get(key);
+      d.degree += 1;
+      d.impact_sum += Number(a.impact_score || 0.5);
+      if (a.sentiment === 'positive') d.pos += 1;
+      else if (a.sentiment === 'negative') d.neg += 1;
+      else d.neu += 1;
+    });
+  });
+  const ents = Array.from(byEntity.values())
+    .sort((a, b) => (b.degree - a.degree) || (b.impact_sum - a.impact_sum))
+    .slice(0, 60);
+  await classifyTopicTypesQuick(ents);
+  renderEntities(ents);
+}
+
+async function classifyTopicTypesQuick(entities) {
+  if (!Array.isArray(entities) || !entities.length) return;
+  const unresolved = [];
+  entities.forEach((e) => {
+    const name = String(e && (e.label || e.name) || '').trim();
+    if (!name) return;
+    if (topicTypeCache.has(name)) {
+      e.entity_type = topicTypeCache.get(name);
+      return;
+    }
+    unresolved.push(name);
+  });
+  if (!backendLive || !unresolved.length) return;
+  try {
+    const r = await fetch(`${API}/topics/categorize`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(unresolved),
+    });
+    if (!r.ok) return;
+    const data = await r.json();
+    const types = (data && data.types) || {};
+    entities.forEach((e) => {
+      const name = String(e && (e.label || e.name) || '').trim();
+      if (!name) return;
+      const t = String(types[name] || e.entity_type || 'UNKNOWN').toUpperCase();
+      e.entity_type = t;
+      topicTypeCache.set(name, t);
+    });
+  } catch {
+    // Keep Topics view responsive even if categorizer endpoint is down.
+  }
+}
+
+function renderEntities(entities) {
+  let rows = [...entities];
+  if (currentSearchQuery) {
+    const lo = currentSearchQuery.toLowerCase();
+    rows = rows.filter((e) =>
+      (String(e.label || e.name || '')).toLowerCase().includes(lo) ||
+      (String(e.entity_type || '')).toLowerCase().includes(lo)
+    );
+  }
+  const maxDeg = Math.max(1, ...rows.map(e => e.degree || 1));
+  updateEntitiesFocusToolbar();
+  if (!rows.length) {
+    document.getElementById('entity-grid').innerHTML =
+      '<div style="padding:1rem;color:var(--ink-3);font-size:12px">No topics found for current filters.</div>';
+    return;
+  }
+  document.getElementById('entity-grid').innerHTML = rows.map(e => `
+    <div class="entity-card ${currentEntity && normEntity(currentEntity) === normEntity(e.label || e.name) ? 'active' : ''}" style="box-shadow:inset 0 0 0 1px ${entityTypeColor(e.entity_type)}26" onclick="toggleEntityContext('${escAttr(e.label || e.name)}')">
+      <div class="ent-name">${e.label || e.name}</div>
+      <div class="ent-type-badge" style="color:${entityTypeColor(e.entity_type)}">${escAttr(e.entity_type || 'UNKNOWN')}</div>
+      <div class="ent-bar-bg">
+        <div class="ent-bar-fill" style="width:${Math.round(((e.degree||1)/maxDeg)*100)}%"></div>
+      </div>
+      <div class="ent-degree">${e.degree || 0} story links · impact ${Number(e.impact_sum || 0).toFixed(2)}</div>
+      <div class="ent-actions">
+        <span class="ent-action" onclick="event.stopPropagation(); openEntityInGraph('${escAttr(e.label || e.name)}')">Graph</span>
+        <span class="ent-action" onclick="event.stopPropagation(); openEntityOnMap('${escAttr(e.label || e.name)}')">Map</span>
+      </div>
+    </div>
+  `).join('');
+}
+
+function normEntityType(t) {
+  return String(t || 'ORG').trim().toUpperCase();
+}
+
+function entityTypeColor(t) {
+  const k = normEntityType(t);
+  if (k === 'PERSON') return '#7c3aed';
+  if (k === 'COUNTRY') return '#1d4ed8';
+  if (k === 'PLACE' || k === 'LOCATION' || k === 'GPE') return '#2563eb';
+  if (k === 'PRODUCT') return '#0f766e';
+  if (k === 'EVENT') return '#b45309';
+  if (k === 'UNKNOWN') return '#6b7280';
+  if (k === 'ORG' || k === 'ORGANIZATION') return '#c8622a';
+  return '#6b7280';
+}
+
+function updateEntitiesFocusToolbar() {
+  const pill = document.getElementById('entities-focus-pill');
+  if (!pill) return;
+  if (currentEntity) {
+    pill.textContent = `topic: ${currentEntity}`;
+    pill.classList.remove('hidden-inline');
+  } else {
+    pill.textContent = '';
+    pill.classList.add('hidden-inline');
+  }
+}
+
+function toggleEntityContext(entityName) {
+  const picked = String(entityName || '').trim();
+  if (!picked) return;
+  const pickedKey = canonicalEntityKey(picked);
+  const currentKey = canonicalEntityKey(currentEntity || '');
+  currentEntity = (currentEntity && currentKey === pickedKey) ? null : displayEntityName(picked);
+  updateEntitiesFocusToolbar();
+  renderFeed(getFeedBaseArticles());
+  if (currentView === 'entities') loadEntities();
+  if (currentView === 'dashboard') loadWorldImpactAndMap();
+  if (currentView === 'graph' && graphData.nodes.length) {
+  const fg = filterGraphData(graphData, allArticles, currentCategory, currentEntity);
+    buildGraph('graph-canvas-full', fg, true);
+    if (currentEntity) setTimeout(() => highlightNode(`ent:${canonicalEntityKey(currentEntity).replace(/\s+/g, '_')}`), 120);
+  }
+  showToast(currentEntity ? `Topic focus: ${currentEntity}` : 'Topic focus cleared');
+}
+
+function openEntityInGraph(entityName) {
+  const picked = String(entityName || '').trim();
+  if (!picked) return;
+  currentEntity = displayEntityName(picked);
+  updateEntitiesFocusToolbar();
+  preserveEntityOnNextViewSwitch = true;
+  openNodeInGraph(`ent:${canonicalEntityKey(currentEntity).replace(/\s+/g, '_')}`, { depth: 2, zoom: false });
+}
+
+function openEntityOnMap(entityName) {
+  const picked = String(entityName || '').trim();
+  if (!picked) return;
+  currentEntity = displayEntityName(picked);
+  updateEntitiesFocusToolbar();
+  preserveEntityOnNextViewSwitch = true;
+  switchView('dashboard');
+  renderFeed(getFeedBaseArticles());
+  loadWorldImpactAndMap();
+}
+
+function clearEntityFocus(resetTopicSearch = false) {
+  if (resetTopicSearch) {
+    currentSearchQuery = '';
+    const searchInput = document.getElementById('search-input');
+    if (searchInput) searchInput.value = '';
+    currentFilter = 'all';
+    const chips = Array.from(document.querySelectorAll('#entities-filter-chips .filter-chip'));
+    chips.forEach((c) => c.classList.remove('active'));
+    const allChip = chips.find((c) => c.getAttribute('onclick')?.includes("'all'"));
+    if (allChip) allChip.classList.add('active');
+  }
+  if (!currentEntity) {
+    if (currentView === 'entities') loadEntities();
+    return;
+  }
+  currentEntity = null;
+  updateEntitiesFocusToolbar();
+  renderFeed(getFeedBaseArticles());
+  if (currentView === 'dashboard') loadWorldImpactAndMap();
+  if (currentView === 'entities') loadEntities();
+  if (currentView === 'graph' && graphData.nodes.length) {
+    const fg = filterGraphData(graphData, allArticles, currentCategory, null);
+    buildGraph('graph-canvas-full', fg, true);
+  }
+  showToast('Topic focus cleared');
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Ask AI
+// ────────────────────────────────────────────────────────────────────────────
+function formatAskMarkdownToHtml(t) {
+  const esc = (c) => c.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const bold = (s) => s.replace(/\*\*([^*]+?)\*\*/g, '<strong>$1</strong>');
+  const rawBlocks = String(t).split(/\n\n+/);
+  const mergedBlocks = [];
+  for (const block of rawBlocks) {
+    const para = String(block || '').trim();
+    if (!para) continue;
+    const lines = para.split('\n').map((l) => l.trim()).filter((l) => l.length);
+    const isOrderedListBlock = lines.length >= 1 && lines.every((l) => /^\d+\.\s+/.test(l));
+    if (
+      isOrderedListBlock &&
+      mergedBlocks.length > 0 &&
+      mergedBlocks[mergedBlocks.length - 1].type === 'ol'
+    ) {
+      mergedBlocks[mergedBlocks.length - 1].lines.push(...lines);
+      continue;
+    }
+    mergedBlocks.push({
+      type: isOrderedListBlock ? 'ol' : 'p',
+      text: para,
+      lines,
+    });
+  }
+  return mergedBlocks
+    .map((b) => {
+      if (b.type === 'ol') {
+        return (
+          '<ol>' +
+          b.lines
+            .map((l) => {
+              const c = l.replace(/^\d+\.\s+/, '');
+              return '<li>' + bold(esc(c)) + '</li>';
+            })
+            .join('') +
+          '</ol>'
+        );
+      }
+      return '<p>' + bold(esc(b.text).replace(/\n/g, '<br>')) + '</p>';
+    })
+    .join('');
+}
+
+async function sendQuestion() {
+  const input = document.getElementById('ask-input');
+  const sendBtn = document.getElementById('ask-send-btn');
+  const thread = document.getElementById('ask-thread');
+  const empty = document.getElementById('ask-empty');
+  const question = input.value.trim();
+  if (!question) return;
+
+  if (empty) empty.style.display = 'none';
+  const userMsg = appendAskMessage('user', question);
+  userMsg.classList.remove('ask-prose');
+  input.value = '';
+  sendBtn.disabled = true;
+  input.disabled = true;
+
+  const aiMsg = appendAskMessage('ai', 'Thinking…', true);
+  aiMsg.classList.add('ask-prose');
+  scrollAskThreadToEnd();
+
+  try {
+    const cq = currentCategory && backendLive
+      ? `&category=${encodeURIComponent(currentCategory)}`
+      : '';
+    const r = await fetch(`${API}/ask?q=${encodeURIComponent(question)}${cq}`);
+    const d = await r.json();
+    const ans = d.answer != null ? String(d.answer) : '';
+    await streamAskResponse(aiMsg, ans);
+    renderAskEvidence(aiMsg, d);
+  } catch {
+    const body = aiMsg.querySelector('.ask-msg-body');
+    if (body) body.innerHTML = formatAskMarkdownToHtml(
+      'To use Ask AI, start the backend:\n\n' +
+        'uvicorn api:app --reload\n\n' +
+        'Then make sure Ollama is running:\n\n' +
+        'ollama serve\n' +
+        'ollama pull qwen2.5:0.5b'
+    );
+  } finally {
+    aiMsg.classList.remove('loading');
+    sendBtn.disabled = false;
+    input.disabled = false;
+    input.focus();
+    scrollAskThreadToEnd();
+  }
+}
+
+function appendAskMessage(role, text, isLoading=false) {
+  const thread = document.getElementById('ask-thread');
+  const wrap = document.createElement('div');
+  wrap.className = `ask-msg ${role === 'user' ? 'ask-msg-user' : 'ask-msg-ai'} ${isLoading ? 'loading' : ''}`;
+
+  const roleLabel = document.createElement('span');
+  roleLabel.className = 'ask-msg-role';
+  roleLabel.textContent = role === 'user' ? 'You' : 'Ask AI';
+  wrap.appendChild(roleLabel);
+
+  const body = document.createElement('div');
+  body.className = 'ask-msg-body';
+  body.textContent = text || '';
+  wrap.appendChild(body);
+  thread.appendChild(wrap);
+  return wrap;
+}
+
+function scrollAskThreadToEnd() {
+  const thread = document.getElementById('ask-thread');
+  if (!thread) return;
+  thread.scrollTop = thread.scrollHeight;
+}
+
+function handleAskInputKeydown(event) {
+  if (event.key === 'Enter' && !event.shiftKey) {
+    event.preventDefault();
+    sendQuestion();
+  }
+}
+
+async function streamAskResponse(respEl, text) {
+  const src = String(text || '');
+  const body = respEl.querySelector('.ask-msg-body');
+  if (!body) return;
+  if (!src) {
+    body.innerHTML = '';
+    return;
+  }
+  const step = Math.max(16, Math.floor(src.length / 90));
+  let i = 0;
+  while (i < src.length) {
+    i = Math.min(src.length, i + step);
+    body.innerHTML = formatAskMarkdownToHtml(src.slice(0, i));
+    scrollAskThreadToEnd();
+    // Fast incremental rendering for a "streaming" feel.
+    await new Promise((resolve) => setTimeout(resolve, 18));
+  }
+}
+
+function renderAskEvidence(msgEl, data) {
+  const body = msgEl.querySelector('.ask-msg-body');
+  if (!body || !data || typeof data !== 'object') return;
+  const citations = Array.isArray(data.citations) ? data.citations : [];
+  const confidence = String(data.confidence || '').trim();
+  if (!citations.length && !confidence) return;
+
+  const ev = document.createElement('div');
+  ev.className = 'ask-evidence';
+
+  if (confidence) {
+    const cf = document.createElement('div');
+    cf.className = 'ask-confidence';
+    cf.textContent = `Evidence strength: ${confidence}`;
+    ev.appendChild(cf);
+  }
+
+  if (citations.length) {
+    const list = document.createElement('div');
+    list.className = 'ask-citations';
+    citations.slice(0, 5).forEach((c, i) => {
+      const card = document.createElement('div');
+      card.className = 'ask-cite';
+      const title = String((c && c.title) || `Source ${i + 1}`);
+      const url = String((c && c.url) || '').trim();
+      const source = String((c && c.source) || 'Unknown source');
+      const when = String((c && c.published_at) || '').slice(0, 10);
+      card.innerHTML =
+        (url
+          ? `<a href="${escAttr(url)}" target="_blank" rel="noopener noreferrer">${escAttr(title)}</a>`
+          : `<span>${escAttr(title)}</span>`) +
+        `<div class="ask-cite-meta">${escAttr(source)}${when ? ` · ${escAttr(when)}` : ''}</div>`;
+      list.appendChild(card);
+    });
+    ev.appendChild(list);
+  }
+  body.appendChild(ev);
+}
+
+function askPreset(el) {
+  document.getElementById('ask-input').value = el.textContent;
+  sendQuestion();
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Search
+// ────────────────────────────────────────────────────────────────────────────
+let searchTimer;
+function onSearch(q) {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(() => {
+    currentSearchQuery = (q || '').trim();
+    if (currentView === 'dashboard') {
+      renderFeed(getFeedBaseArticles());
+      refreshScopedMetrics();
+      loadWorldImpactAndMap();
+      return;
+    }
+    if (currentView === 'entities') {
+      loadEntities();
+      return;
+    }
+    if (currentView === 'graph') {
+      applyGraphSearch(currentSearchQuery);
+      return;
+    }
+  }, 250);
+}
+
+function applyGraphSearch(query) {
+  if (currentView !== 'graph' || !svgFull) return;
+  const q = String(query || '').trim().toLowerCase();
+  const nodeGroups = svgFull.selectAll('g.node');
+  const circles = nodeGroups.selectAll('circle');
+  const texts = nodeGroups.selectAll('text');
+  const links = svgFull.selectAll('line');
+  if (!q) {
+    circles.attr('opacity', 1).attr('r', d => getNodeRadius(d));
+    texts.attr('opacity', 1);
+    links.attr('opacity', 1).attr('stroke', '#d8dce3').attr('stroke-width', 1);
+    return;
+  }
+  const isHit = (d) => {
+    const label = String(d.label || '').toLowerCase();
+    const id = String(d.id || '').toLowerCase();
+    const cat = String(d.category || '').toLowerCase();
+    const typ = String(d.type || '').toLowerCase();
+    return label.includes(q) || id.includes(q) || cat.includes(q) || typ.includes(q);
+  };
+  const matchedIds = new Set();
+  nodeGroups.each((d) => {
+    if (isHit(d)) matchedIds.add(String(d.id || ''));
+  });
+  const relatedIds = new Set(matchedIds);
+  const isMatchLink = (l) => {
+    const sid = String(linkEndpointId(l.source));
+    const tid = String(linkEndpointId(l.target));
+    return matchedIds.has(sid) || matchedIds.has(tid);
+  };
+  links.each((l) => {
+    const sid = String(linkEndpointId(l.source));
+    const tid = String(linkEndpointId(l.target));
+    if (isMatchLink(l)) {
+      relatedIds.add(sid);
+      relatedIds.add(tid);
+    }
+  });
+  circles
+    .attr('opacity', d => {
+      const id = String(d.id || '');
+      if (matchedIds.has(id)) return 1;
+      if (relatedIds.has(id)) return 0.72;
+      return 0.12;
+    })
+    .attr('r', d => {
+      const id = String(d.id || '');
+      if (matchedIds.has(id)) return getNodeRadius(d) * 1.9;
+      if (relatedIds.has(id)) return getNodeRadius(d) * 1.2;
+      return getNodeRadius(d);
+    });
+  texts.attr('opacity', d => {
+    const id = String(d.id || '');
+    if (matchedIds.has(id)) return 1;
+    if (relatedIds.has(id)) return 0.8;
+    return 0.16;
+  });
+  links
+    .attr('opacity', (l) => {
+      const sid = String(linkEndpointId(l.source));
+      const tid = String(linkEndpointId(l.target));
+      if (matchedIds.has(sid) || matchedIds.has(tid)) return 0.96;
+      if (relatedIds.has(sid) && relatedIds.has(tid)) return 0.55;
+      return 0.06;
+    })
+    .attr('stroke', (l) => isMatchLink(l) ? '#c8622a' : '#d8dce3')
+    .attr('stroke-width', (l) => isMatchLink(l) ? 1.8 : 1);
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Pipeline trigger
+// ────────────────────────────────────────────────────────────────────────────
+async function triggerRun() {
+  const btn = document.getElementById('run-btn');
+  btn.disabled = true;
+  btn.textContent = '⏳ Running…';
+  // Run in a clean "all live" scope so feed shows all newly fetched items.
+  currentCategory = null;
+  selectedRegionIso2 = null;
+  regionScopedArticlesCache = null;
+  currentSearchQuery = '';
+  const searchInput = document.getElementById('search-input');
+  if (searchInput) searchInput.value = '';
+  resetFeedFilterToAll();
+  closeSmartBrief();
+  pipelineSteps = [];
+  setPipelineRunning(true);
+  addPipelineStep('Starting pipeline run');
+  // On run start: apply one-step zoom-out from current globe state.
+  if (worldProjectionMode === 'globe') {
+    worldMapZoom(0.75);
+  }
+  try {
+    const r = await fetch(`${API}/run`, { method: 'POST' });
+    if (!r.ok) throw new Error('Run failed');
+    showToast('Live updates: feed and stats refresh as each step finishes.', 4000);
+    let n = 0;
+    const max = 2500;
+    const tick = async () => {
+      n++;
+      const last = await fetch(`${API}/pipeline/last`, { cache: 'no-store' }).then((x) => x.json());
+      applyPipelineProgress(last);
+      if (last.status === 'error') {
+        addPipelineStep('Pipeline failed');
+        setPipelineRunning(false);
+        showToast('Pipeline error: ' + (last.message || 'unknown'), 8000);
+        clearInterval(t);
+        btn.disabled = false;
+        btn.innerHTML = '▶ Run Pipeline';
+        await loadData();
+        return;
+      }
+      if (last.status === 'running') {
+        try {
+          await loadDashboardPartial();
+        } catch (e) { /* ignore transient errors while polling */ }
+        if (n >= max) {
+          addPipelineStep('Polling timeout reached');
+          setPipelineRunning(false);
+          showToast('Stopped polling after long run - use refresh if needed.', 5000);
+          clearInterval(t);
+          btn.disabled = false;
+          btn.innerHTML = '▶ Run Pipeline';
+        }
+        return;
+      }
+      if (last.status === 'ok') {
+        applyPipelineSummaryMetrics(last.summary);
+        addPipelineStep('Pipeline completed');
+        setPipelineRunning(false);
+        // Ensure next stable stats refresh animates after pipeline completion.
+        animateMetricsOnNextStableUpdate = true;
+        pipelineMetricsFrozenDuringFetch = false;
+        clearInterval(t);
+        btn.disabled = false;
+        btn.innerHTML = '▶ Run Pipeline';
+        resetFeedFilterToAll();
+        await loadData();
+        // On completion: immediately return to 2D map view.
+        if (worldProjectionMode === 'globe') {
+          worldProjectionMode = 'flat';
+          const mapBtn = document.getElementById('world-map-toggle');
+          if (mapBtn) mapBtn.textContent = 'Switch to Globe (3D-like)';
+          if (lastWorldData) buildWorldMap(lastWorldData);
+        }
+        if (graphData.nodes.length && currentView === 'graph') {
+          const fg = filterGraphData(graphData, allArticles, currentCategory, currentEntity);
+          buildGraph('graph-canvas-full', fg, true);
+        }
+        const nFetched = last.summary && last.summary.articles_fetched;
+        if (nFetched === 0) {
+          showToast('No articles fetched (network / RSS). See terminal for logs.', 8000);
+        } else if (nFetched != null) {
+          showToast(`Pipeline done - fetched ${nFetched} article(s) for today.`, 4500);
+        }
+        return;
+      }
+    };
+    const t = setInterval(tick, 450);
+    tick();
+  } catch {
+    addPipelineStep('Backend offline');
+    setPipelineRunning(false);
+    showToast('Backend offline - start it first.');
+    btn.disabled = false;
+    btn.innerHTML = '▶ Run Pipeline';
+  }
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Toast
+// ────────────────────────────────────────────────────────────────────────────
+function showToast(msg, dur=3000) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), dur);
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Resize graph on window resize
+// ────────────────────────────────────────────────────────────────────────────
+window.addEventListener('resize', () => {
+  if (lastWorldData) buildWorldMap(lastWorldData);
+  if (graphData.nodes.length && currentView === 'graph') {
+    const fg = filterGraphData(graphData, allArticles, currentCategory, currentEntity);
+    buildGraph('graph-canvas-full', fg, true);
+  }
+});
+</script>
+</body>
+</html>
