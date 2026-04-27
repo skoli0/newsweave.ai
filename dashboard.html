@@ -891,6 +891,7 @@ a.art-link:hover { text-decoration: underline; }
   flex-direction: column;
   min-height: 0;
   flex: 1;
+  position: relative;
 }
 .entities-toolbar {
   display: flex;
@@ -944,6 +945,49 @@ a.art-link:hover { text-decoration: underline; }
   overscroll-behavior: contain;
   align-content: start;
   align-items: stretch;
+}
+.entities-loading-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 8;
+  background: rgba(245,243,238,0.62);
+  backdrop-filter: blur(4px);
+  transition: opacity 180ms ease;
+}
+.entities-loading-overlay.hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+.entities-loading-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  min-width: 220px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: rgba(255,255,255,0.9);
+  box-shadow: 0 12px 34px rgba(20,28,40,0.16);
+  padding: 14px 18px;
+}
+.entities-loading-spinner {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 2px solid rgba(42,133,196,0.2);
+  border-top-color: #2a85c4;
+  animation: entitiesSpin 0.9s linear infinite;
+}
+.entities-loading-text {
+  font-size: 11px;
+  color: var(--ink-2);
+  letter-spacing: 0.01em;
+}
+@keyframes entitiesSpin {
+  to { transform: rotate(360deg); }
 }
 .entity-card {
   background: var(--paper);
@@ -1272,6 +1316,12 @@ a.art-link:hover { text-decoration: underline; }
   <!-- ── Topics View ── -->
   <div class="view" id="entities-view">
     <div class="entities-shell">
+      <div id="entities-loading" class="entities-loading-overlay hidden" aria-live="polite">
+        <div class="entities-loading-card">
+          <div class="entities-loading-spinner"></div>
+          <div class="entities-loading-text" id="entities-loading-text">Classifying topics…</div>
+        </div>
+      </div>
       <div class="entities-toolbar">
         <div class="entities-meta entities-meta-row">
           <span>Topic intelligence</span>
@@ -1364,6 +1414,8 @@ let pendingGraphFocus = null;
 let simulation, svg, gMain, zoomBehavior;
 let simFull, svgFull, gMainFull, zoomFull;
 const topicTypeCache = new Map();
+let entitiesLoadSeq = 0;
+let entitiesLoadingSince = 0;
 
 // ────────────────────────────────────────────────────────────────────────────
 // Demo Data (shown when backend is not running)
@@ -4024,6 +4076,8 @@ async function filterByCategory(cat) {
 // Topics
 // ────────────────────────────────────────────────────────────────────────────
 async function loadEntities() {
+  const seq = ++entitiesLoadSeq;
+  setEntitiesLoading(true, 'Classifying topics…');
   const base = getFeedBaseArticles();
   let scoped = [...base];
   if (currentFilter === 'positive') scoped = scoped.filter(a => a.sentiment === 'positive');
@@ -4058,8 +4112,31 @@ async function loadEntities() {
   const ents = Array.from(byEntity.values())
     .sort((a, b) => (b.degree - a.degree) || (b.impact_sum - a.impact_sum))
     .slice(0, 60);
-  await classifyTopicTypesQuick(ents);
-  renderEntities(ents);
+  try {
+    await classifyTopicTypesQuick(ents);
+    if (seq !== entitiesLoadSeq) return;
+    renderEntities(ents);
+  } finally {
+    if (seq === entitiesLoadSeq) await setEntitiesLoading(false);
+  }
+}
+
+async function setEntitiesLoading(show, msg = 'Classifying topics…') {
+  const overlay = document.getElementById('entities-loading');
+  const text = document.getElementById('entities-loading-text');
+  if (text && show) text.textContent = msg;
+  if (!overlay) return;
+  if (show) {
+    entitiesLoadingSince = Date.now();
+    overlay.classList.remove('hidden');
+    return;
+  }
+  const shownFor = Date.now() - (entitiesLoadingSince || Date.now());
+  const minVisibleMs = 220;
+  if (shownFor < minVisibleMs) {
+    await new Promise((resolve) => setTimeout(resolve, minVisibleMs - shownFor));
+  }
+  overlay.classList.add('hidden');
 }
 
 async function classifyTopicTypesQuick(entities) {
