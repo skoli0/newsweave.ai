@@ -131,6 +131,10 @@ class StorageAgent:
             self._upsert_entities(conn, graph)
             self._upsert_edges(conn, graph)
             self._store_graph_d3(conn, d3)
+            conn.execute(
+                "INSERT INTO runs (articles_in, nodes, edges_count) VALUES (?, ?, ?)",
+                (len(articles), graph.number_of_nodes(), graph.number_of_edges()),
+            )
         log.info("Saved %d articles + graph to %s", len(articles), self.db_path)
 
     def upsert_articles(self, articles: list[Article]):
@@ -283,6 +287,23 @@ class StorageAgent:
             except (TypeError, ValueError):
                 out["impact_score"] = 0.5
         return out
+
+    def get_last_run_at(self) -> Optional[str]:
+        """Return the most recent pipeline run timestamp as a UTC ISO string (with Z suffix)."""
+        with self._conn() as conn:
+            row = conn.execute(
+                "SELECT ran_at FROM runs ORDER BY ran_at DESC LIMIT 1"
+            ).fetchone()
+            if row and row[0]:
+                ts = str(row[0]).rstrip("Z") + "Z"
+                return ts
+            # Fallback: max fetched_at from articles (always set on insert)
+            row2 = conn.execute(
+                "SELECT MAX(fetched_at) FROM articles"
+            ).fetchone()
+            if row2 and row2[0]:
+                return str(row2[0]).rstrip("Z") + "Z"
+        return None
 
     def get_graph_json(self) -> dict:
         """Return the last stored D3 graph (all node types). Fallback: empty graph."""

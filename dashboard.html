@@ -1211,13 +1211,18 @@ a.art-link:hover { text-decoration: underline; }
   flex-shrink: 0;
   overflow: hidden;
 }
+.feed-status-progress.hidden {
+  display: none;
+}
 .feed-status-progress-bar {
   height: 100%;
   border-radius: 2px;
   background: #38bdf8;
-  width: 30%;
-  animation: feedProgress 1.4s ease-in-out infinite;
+  width: 0%;
   transform-origin: left;
+}
+.feed-status-bar.running .feed-status-progress-bar {
+  animation: feedProgress 1.4s ease-in-out infinite;
 }
 @keyframes feedProgress {
   0%   { width: 0%;   margin-left: 0%;   opacity: 0.8; }
@@ -1572,6 +1577,7 @@ let userCountryIso2 = null;
 let regionScopedArticlesCache = null;
 let regionScopeLoadSeq = 0;
 let pipelineIsRunning = false;
+let lastPipelineCompletedAt = null; // ms timestamp, set from DB or client-side on run stop
 let pipelineMetricsFrozenDuringFetch = false;
 let pipelineSteps = [];
 let worldSpinInterval = null;
@@ -1945,7 +1951,6 @@ function applyPipelineProgress(last) {
     el.textContent = msg;
     const mp = document.getElementById('map-pipeline-primary');
     if (mp) mp.textContent = msg;
-    setFeedStatusBar(true, msg);
     const st = document.getElementById('pipeline-status');
     if (st) st.innerHTML = '<span class="status-dot" style="background:#38bdf8"></span>running';
     setPipelineRunning(true);
@@ -2191,9 +2196,8 @@ function setPipelineRunning(next) {
     worldMapConnectionToken += 1;
     const mp = document.getElementById('map-pipeline-primary');
     if (mp) mp.textContent = '';
-    setFeedStatusBar(false, '');
+    lastPipelineCompletedAt = Date.now();
   }
-  if (pipelineIsRunning) setFeedStatusBar(true, 'Pipeline running · updating…');
   renderPipelineSteps();
   syncMapPipelineOverlay();
 }
@@ -2891,6 +2895,12 @@ function updateStats(s) {
   animateNum('s-pos',      s.sentiment_breakdown?.positive || 0);
   animateNum('s-neg',      s.sentiment_breakdown?.negative || 0);
   animateNum('s-nodes',    s.total_nodes || 0);
+  // Sync last run time from DB — normalise to ISO UTC before parsing
+  if (s.last_run_at) {
+    const iso = String(s.last_run_at).replace(' ', 'T').replace(/Z?$/, 'Z');
+    const t = Date.parse(iso);
+    if (Number.isFinite(t) && t > 0) lastPipelineCompletedAt = t;
+  }
 }
 
 function updateActiveRegions(value) {
@@ -3169,10 +3179,16 @@ function renderFeed(articles) {
   // Update status bar
   const count = filtered.length;
   const total = articles.length;
-  const live = new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+  const countLabel = `${count}${count !== total ? ` of ${total}` : ''} article${count !== 1 ? 's' : ''}`;
+
+  // Use the last pipeline ran_at from DB (synced via updateStats → lastPipelineCompletedAt)
+  const updatedLabel = lastPipelineCompletedAt
+    ? `Updated ${new Date(lastPipelineCompletedAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}`
+    : 'Not yet updated';
+
   setFeedStatusBar(pipelineIsRunning, pipelineIsRunning
-    ? `Live · ${count} article${count !== 1 ? 's' : ''} · updating…`
-    : `${count}${count !== total ? ` of ${total}` : ''} article${count !== 1 ? 's' : ''} · ${live}`
+    ? `${countLabel} · fetching new…`
+    : `${countLabel} · ${updatedLabel}`
   );
 }
 

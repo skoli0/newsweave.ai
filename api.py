@@ -211,7 +211,7 @@ def get_stats():
         "total_edges": len(graph["links"]),
         "sentiment_breakdown": sentiments,
         "category_breakdown": categories,
-        "last_updated": datetime.utcnow().isoformat(),
+        "last_run_at": storage.get_last_run_at(),
     }
 
 
