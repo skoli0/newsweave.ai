@@ -76,7 +76,10 @@ body {
   letter-spacing: -0.5px;
   color: #fff;
   line-height: 1;
+  cursor: pointer;
+  user-select: none;
 }
+.logo-mark:hover { opacity: 0.92; }
 .logo-sub {
   font-size: 10px;
   font-weight: 300;
@@ -1262,7 +1265,7 @@ a.art-link:hover { text-decoration: underline; }
 <!-- ── Sidebar ──────────────────────────────────────────── -->
 <aside id="sidebar">
   <div class="logo">
-    <div class="logo-mark">NewsWeave</div>
+    <div class="logo-mark" role="button" tabindex="0" title="Reload NewsWeave" onclick="reloadApp(event)" onkeydown="if(event.key==='Enter'||event.key===' '){reloadApp(event)}">NewsWeave</div>
     <div class="logo-sub">News Intelligence</div>
   </div>
 
@@ -4226,6 +4229,15 @@ const VIEW_TITLES = {
   entities:  'Topics',
   ask:       'Ask AI',
 };
+
+function reloadApp(e) {
+  // Full reload while preserving query params (e.g., ?api_origin=...)
+  try { e?.preventDefault?.(); } catch (_) {}
+  try { e?.stopPropagation?.(); } catch (_) {}
+  const url = new URL(window.location.href);
+  url.searchParams.set('_r', String(Date.now()));
+  window.location.assign(url.toString());
+}
 
 function switchView(name) {
   if ((name === 'dashboard' || name === 'graph') && !preserveEntityOnNextViewSwitch && currentEntity) {
